@@ -1,0 +1,133 @@
+\section{Requirement verdicts and their evidence, in full}\label{sec:A}
+
+This is \S\ref{sec:3}'s requirement table with its full evidence column, laid out one requirement per block
+so that no column has to be narrow. The body carries the same seven rows reduced to statement,
+acceptance criterion and verdict; \S\ref{sec:11.2} and Appendix \ref{sec:F} carry the experiments behind them. Nothing
+here is new: it is the text the body used to print in place.
+
+\subsection{R-1 --- confirm a damper that has stopped responding}\label{sec:A.1}
+
+\textbf{Statement (EARS).} \emph{When} a damper stops responding to commands, the system shall confirm the fault.
+
+\textbf{Acceptance criterion.} p95 confirmation ≤ 15 min after the first ignored command. \quad \textbf{Verification.} Injection harness, ≥ 20 runs,
+report p95.
+
+\textbf{Status, honestly.} \textbf{Met as specified; not met in closed loop.} On the stepped protocol this
+verification column names (the building settled, one ignored command, 20 seeds), the harness
+measures p95 = \textbf{6 min} at the deployed $h$ = 150 ppm, 20/20 detected, and p95 stays between
+5 and 8 min over $h$ = 50…300 ppm. \texttt{fault-monitor}'s own R-1 test agrees to the minute. On a
+drawn weekday with the inner loop and supervisor live the same injection gives median 74 min,
+\textbf{p95 257 min} and 15/20 detected; the cause is the plausibility ceiling, not detector
+latency (§\ref{sec:11.2}).
+
+\subsection{R-2 --- hold the faulted zone below 1000 ppm by compensation}\label{sec:A.2}
+
+\textbf{Statement (EARS).} \emph{While} a fault is latched, the system shall keep the affected zone below 1000 ppm by
+compensation.
+
+\textbf{Acceptance criterion.} Zone CO₂ ≤ 1000 ppm for ≥ 95 \% of occupied minutes during the fault. \quad \textbf{Verification.} End-to-end scenario test.
+
+\textbf{Status, honestly.} \textbf{Met on the case it covers; not met at design occupancy.} The
+solver is proved exactly: a damper frozen at the 0.15 floor is restored from 59.7 to 165.9 l/s
+with the five healthy flows unchanged (§\ref{sec:7.4}, §\ref{sec:11.3}). And the closed-loop percentile is now
+measured: 1.000 of occupied minutes, 5 of 5 seeds, on a drawn weekday, with the lower CUSUM arm off
+and with no damper feedback alike. With every room simultaneously at design occupancy \textbf{0 of
+5 seeds} meet it, while the no-fault reference meets it 5 of 5 in every case (§\ref{sec:11.2}).
+
+\subsection{R-3 --- no more than one false alarm per simulated week}\label{sec:A.3}
+
+\textbf{Statement (EARS).} The monitor shall raise no more than one false alarm per simulated week.
+
+\textbf{Acceptance criterion.} ≤ 1
+\texttt{FaultConfirmed} in a 7-day fault-free replay. \quad \textbf{Verification.} Replay test on fixed seed.
+
+\textbf{Status, honestly.} \textbf{Not met.} Measured over 20 fault-free simulated weeks of all six rooms:
+\textbf{0.55 confirmed cases per week} against a limit of 1, \textbf{16 of 20 weeks clean}, worst
+week 6 (§\ref{sec:11.2}), down from 1.30 per week with 9 clean weeks before ADR-0010. The harness scores the
+worst week, so R-3 still fails the criterion it is judged by. The failure is no longer
+unattributed: both plausibility guards were being corrected 30 \% of the way onto every reading, so
+each was a filter of the measurement rather than a bound and each CUSUM arm ran on a filter error
+(ADR-0010, §\ref{sec:11.2}). Fixing the lower arm's half of that halved the rate with $k$ and $h$ untouched,
+and they are still left where the spike put them rather than retuned until R-3 passes (§\ref{sec:13.4}).
+
+\subsection{R-4 --- report unavailable on stale readings, and diagnose nothing}\label{sec:A.4}
+
+\textbf{Statement (EARS).} \emph{While} readings are stale beyond three intervals, the monitor shall report
+unavailable and issue no diagnosis.
+
+\textbf{Acceptance criterion.} State is \texttt{BLIND}; zero fault events published. \quad \textbf{Verification.} Fault injection: kill \texttt{co2-sensor}.
+
+\textbf{Status, honestly.} \textbf{Met, in-JVM and at container level.} The state machine has no
+edge from \texttt{BLIND} into \texttt{SUSPECT} or \texttt{CONFIRMED} and its transition tests
+cover the stale entry and exit (§\ref{sec:7.3}). T-27 now kills each component in turn in one JVM and
+\textbf{23 of 23 assertions pass}: every observable room reaches \texttt{BLIND} within
+\textbf{4 cycles} of the sensor kill (three sample intervals plus one cycle) with
+\textbf{0 fault events} published while blind and \textbf{0 damper commands} issued on stale data,
+and \texttt{HEALTHY} returns 3 cycles after the readings do (§\ref{sec:11.2}). \textbf{The container-level
+chaos run has since been done too}: against \texttt{docker compose}, five of six rooms reach
+\texttt{BLIND} within 12 s of the kill with no diagnosis and no healthy-room command while blind,
+recovery takes three cycles, and an in-container \texttt{SIGTERM} fires the restart policy: restart
+count 1, running again within 3 s (§\ref{sec:11.6}, \texttt{T-27-container-kills.txt}).
+
+\subsection{R-5 --- make every diagnosis reconstructable}\label{sec:A.5}
+
+\textbf{Statement (EARS).} The system shall make every diagnosis reconstructable.
+
+\textbf{Acceptance criterion.} Inputs, command, residual series,
+classification and timestamp recoverable for any \texttt{caseId}. \quad \textbf{Verification.} Rebuild a random case from
+the journal.
+
+\textbf{Status, honestly.} \textbf{Built, and demonstrated live against the deployed stack.} The hypertables
+carry provenance and the dashboard exposes \texttt{GET /api/cases/\{caseId\}} (§\ref{sec:5}, §\ref{sec:12}). In the
+recorded demo run, \texttt{GET /api/cases/aecd9137-\allowbreak 6c3d-\allowbreak 42a8-\allowbreak ac11-\allowbreak 438ef3d9d2d6} returned
+\textbf{HTTP 200, 77\,248 bytes and 445 events} (every reading, residual and CUSUM value in
+sequence) against a real TimescaleDB rather than a test double
+(\texttt{evaluation/results/T-23-demo-run.txt}, §\ref{sec:5}). One bound still travels with it (the
+\texttt{caseId} was the one that run produced rather than a randomly drawn one), but the other is
+gone: \textbf{R-5 now has an integration test}. Eight tests execute \texttt{replayCase}'s real SQL
+against a real PostgreSQL, covering the \texttt{?::jsonb} cast, the per-zone window scans, the case
+window and the one-hour evidence lookback that decides which readings belong to a case, pinned at
+$-$59, $-$60 and $-$61 min. They measured one bound nobody had assumed: a \texttt{timestamptz} round
+trip \emph{rounds} to the nearest microsecond rather than truncating, so reconstruction fidelity is
+half a microsecond: unreachable in this deployment, where every journalled instant is a whole
+simulated second.
+
+\subsection{R-6 --- identify the zone count at which the monitor misses its interval}\label{sec:A.6}
+
+\textbf{Statement (EARS).} The system shall identify the zone count at which the monitor misses its interval.
+
+\textbf{Acceptance criterion.} Sustained zone count where p95 monitor cycle exceeds 60 s is reported. \quad \textbf{Verification.} Scaling experiment to
+breaking point.
+
+\textbf{Status, honestly.} \textbf{Met, with an extrapolated answer.} The sweep reaches \textbf{25\,600
+zones at a p95 of about 6 s} (5.68–6.05 s over five runs on the same machine), inside the 60 s
+interval, and the fit over the nine points from 100 zones up,
+p95 = $1.196\times10^{-8}\,n^{1.97}$ s with $r^2$ = 0.9991, puts the crossing of 60 s at
+\textbf{about 86\,000 zones}: an \textbf{extrapolation, not a measurement}, and labelled as one.
+The saturated element is named: \texttt{AhuFlowModel.believedFlowTo} sums every zone's opening and
+every zone asks it, so a cycle is $\Theta(n^2)$ (§\ref{sec:11.2}). \textbf{The deployed stack reaches a much
+smaller number, and for a reason outside the monitor}: \texttt{ZONE\_COUNT} is now settable and all
+\factAuthoredServices{} project-authored containers read the same one, but BuildSim refuses to host equipment in a
+room its floorplan does not have, and level 0 of the A building has 52 further rooms of comparable
+size, so the deployed ceiling is \textbf{58 zones}, verified in both directions. The two numbers
+are three orders of magnitude apart and this report never quotes one for the other.
+
+\subsection{R-7 --- keep every other room unchanged while one is latched}\label{sec:A.7}
+
+\textbf{Statement (EARS).} \emph{While} a fault is latched in one room, the system shall keep control and diagnosis of
+every other room unchanged.
+
+\textbf{Acceptance criterion.} Zero fault events and no control-mode change in the other five;
+their CO₂ \emph{and their airflow} stay within the healthy-run band. \quad \textbf{Verification.} Injection in one room,
+assertions over the other five on CO₂ and airflow, ≥ 3 rooms as the injected one.
+
+\textbf{Status, honestly.} \textbf{Met on the drawn weekday; not met at design occupancy.} With the injected room rotated over
+all six rooms, on three seeds and in three configurations, the drawn weekday gives \textbf{0 of 270}
+observed rooms failing: 0 fault events, 0 rooms degraded, 0 outside the CO₂ band, 0 reaching
+\texttt{COMPENSATING} or \texttt{DEGRADED}, airflow inside 5 \% everywhere. With every room at its
+design head count the same experiment gives \textbf{231 of 270 failing}: 215 observed rooms
+\emph{accused of a fault they did not have}, and 16 more outside the airflow band at a worst
+deviation of 0.058919, the two sets disjoint (§\ref{sec:11.2}). The accusations are R-3's false-alarm rate
+arriving inside R-7's experiment: with the supervisor dead they run 85 of 90 against 130 of 180 with
+it live, so they are the regime and the monitor rather than the response to the fault. The solver's
+analytic invariance (§\ref{sec:11.3}) is backed end to end on the drawn weekday only.

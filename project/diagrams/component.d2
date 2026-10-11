@@ -1,0 +1,66 @@
+# C4 level 3 — inside fault-monitor, the one container worth zooming into (T-10).
+# BCE inside hexagonal (ADR-0005): boundary holds every framework and transport type, control
+# and entity depend on nothing outward, and every crossing is a port in domain vocabulary.
+# Every box is labelled with the exact type name, so a reader can grep for it and find it, and
+# with its C4 element type. Where a type's source lives in shared/ rather than in
+# fault-monitor/ the box says so: at runtime it is a component of this container either way,
+# but a reader looking for the file needs the module.
+# The component set is the whole of se.ltu.d7065e.diagnosis.{boundary,control} plus the two
+# shared adapters this container wires. The classifier's input and output records
+# (FaultSignals, Diagnosis) and the value objects are code-level detail and appear in the
+# level 4 diagram, not here.
+direction: down
+broker: "mosquitto\n[Container: eclipse-mosquitto 2]" { shape: queue }
+tsdb: "timescaledb\n[Container: TimescaleDB pg16]" { shape: cylinder }
+mon: "fault-monitor  [Container: Quarkus]" {
+  style.stroke-dash: 4
+  style.fill: transparent
+
+  b: "boundary" {
+    mqtt: "MqttAdapter\n[Component: Paho, in shared/]\nThe one adapter, implementing both\nReadingStreamPort (in) and\nEventPublisherPort (out)"
+    jdbc: "TimescaleJournalAdapter\n[Component: JDBC, native SQL, in shared/]\nimplements ResidualJournalPort"
+    noj: "DiscardingJournal\n[Component]\nThe same port, doing nothing, when\nJDBC_URL is unset. Null object, so the\ncontrol layer has no unconfigured case"
+    sched: "MonitorRuntime\n[Component: Quarkus @Scheduled]\nDrives the cycle at monitor.cycle\n(CYCLE_SECONDS, default 60 s), wires\nthe four subscriptions, picks a journal"
+    health: "MonitorHealthCheck\n[Component: MicroProfile @Readiness]\nReports the per-zone state; DOWN only\nwhen every zone is BLIND"
+  }
+  c: "control" {
+    core: "FaultMonitor\n[Component]\nSix ZoneMonitors over one shared\nAhuFlowModel. runCycle() evaluates every\nroom's residual before any room decides,\nso the common-mode count is this cycle's\npicture rather than a mix of two"
+    obs: "ZoneObserver\n[Component]\nPredicts the CO2 response the last\ncommand should have produced, from the\ncommanded position and the AHU split.\nUses no occupancy; returns a Prediction\nof predicted, ceiling and floor"
+    res: "Cusum\n[Component: record]\nS = max(0, S + r - k) upper,\nmax(0, S - r - k) lower; the arms share\nk and h; alarms strictly above h"
+    sm: "ZoneMonitor\n[Component]\nComputes the residual, drives the arms,\nand holds WARMUP / HEALTHY / SUSPECT /\nCONFIRMED / COMPENSATING / SERVICED\nplus BLIND. Latches, and publishes every\ntransition"
+    cls: "FaultClassifier\n[Component]\nDecision tree over the common-mode\ncount, fan power, step amplitude and the\novernight floor. Gathers evidence for and\nagainst all three hypotheses"
+    floor: "OvernightFloor\n[Component]\nTrailing 24 h minimum, which is the\nsensor-drift signature"
+    par: "MonitorParameters\n[Component: record]\nEvery tunable as a named field with a\ndocumented default — k, h, the cycle, the\nthresholds, the gains, the lower-arm mode"
+    flow: "AhuFlowModel\n[Component]\nThe believed proportional split: what\neach damper was commanded, what the fan\nwas told, and which dampers the monitor\nhas stopped believing"
+  }
+  e: "entity  (in shared/)" {
+    ent: "Residual, CusumStatistic, MonitorState,\nFaultCase, FaultClassification, CaseId,\nEvidence\n[Components: records and enums]\nInvariants in compact constructors; a\nlatched FaultCase leaves CONFIRMED only\nthrough serviced()"
+  }
+}
+broker -> mon.b.mqtt: "readings, fan power, damper\ncommands, fan-speed commands"
+mon.b.mqtt -> mon.b.sched: "events"
+mon.b.sched -> mon.c.core: "reading, command, cycle tick"
+mon.b.sched -> mon.b.jdbc: "opens one, or"
+mon.b.sched -> mon.b.noj: "falls back to the other"
+mon.b.health -> mon.b.sched: "reads the per-zone state"
+mon.c.core -> mon.c.sm: "evaluate, then decide\n(two phases, in that order)"
+mon.c.core -> mon.c.flow: "believed positions\nand fan speed"
+mon.c.sm -> mon.c.obs: "reading, command"
+mon.c.obs -> mon.c.flow: "believed flow to this zone"
+mon.c.obs -> mon.c.sm: "prediction, ceiling, floor"
+mon.c.sm -> mon.c.res: "residual against\nthe ceiling"
+mon.c.res -> mon.c.sm: "CUSUM, alarm"
+mon.c.sm -> mon.c.floor: "measured ppm"
+mon.c.floor -> mon.c.cls: "overnight floor"
+mon.c.sm -> mon.c.cls: "confirm this case"
+mon.c.cls -> mon.c.sm: "classification + evidence"
+mon.c.par -> mon.c.sm: "every threshold"
+mon.c.par -> mon.c.res: "k and h"
+mon.c.par -> mon.c.cls: "the tree's tolerances"
+mon.c.sm -> mon.b.mqtt: "FaultStateChanged,\nResidualComputed"
+mon.b.mqtt -> broker: "residuals/{zone}, faults/{zone}"
+mon.b.jdbc -> tsdb: "append [SQL]"
+mon.c.sm -> mon.b.jdbc: "append every event"
+mon.c.obs -> mon.e.ent: "uses"
+mon.c.sm -> mon.e.ent: "uses"
+mon.c.cls -> mon.e.ent: "uses"

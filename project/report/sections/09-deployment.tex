@@ -1,0 +1,78 @@
+\section{Deployment and component placement}\label{sec:9}
+
+Everything runs on one laptop, so the deployment viewpoint here is about \textbf{how the system is
+composed from independent processes}, not about geography. \factComposeServicesCap{} compose services share one Docker
+bridge network; five ports are published, all on the loopback interface only (BuildSim 9090, the
+dashboard 8080, the simulator 8081 for injecting and clearing a fault, and the broker 1883 and
+database 5432 for inspection). Images carry no compiler: \texttt{mvn package} builds the jars on
+the host and each image copies one over \texttt{eclipse-temurin:25-jre}, which keeps the images
+small and makes the build reproducible from one Maven reactor.
+
+\begin{center}\includegraphics[height=0.66\textheight]{figures/deployment.pdf}\end{center}
+\figcap{C4 Deployment diagram, from \texttt{project/diagrams/deployment.d2}. C4's deployment
+vocabulary is used as C4 defines it: \emph{deployment nodes} nest (laptop, then Docker Engine,
+then the bridge network), and each box inside the innermost node is one \emph{container instance}
+of a container from Section \ref{sec:4.2}, with the environment it is given. Grouping is therefore by what
+hosts what. An earlier revision grouped by the role each service plays, which is a readable
+picture but not a deployment view, and it reversed two edges by drawing reads as replies; the
+startup order is \texttt{docker-compose.yml}'s \texttt{depends\_on} with health conditions.}
+
+\textbf{Startup order is part of the design, not an accident.} \texttt{physics-simulator},
+\texttt{co2-sensor}, \texttt{damper-actuator}, \texttt{supervisor} and \texttt{dashboard} wait for
+BuildSim to pass its health check, because they have nothing to do before the building exists;
+\texttt{dcv-controller}, \texttt{fault-monitor} and \texttt{supervisor} wait for TimescaleDB to be
+ready. Every service carries \texttt{restart: unless-stopped}, which is what makes R-4's
+container-kill experiment a recovery measurement rather than a manual restart.
+
+\textbf{Restarting a process is not the same as restoring what it had concluded, and the gap used
+to be real.} \texttt{restart: unless-stopped} brings a killed container back in about 3 s (§\ref{sec:11.6}),
+but a restarted \texttt{fault-monitor} came back with no latched diagnoses, a back door through
+the one exit the design reserves for a technician, and a restarted \texttt{supervisor} came back
+with no open cases, which was worse than forgetting them: it publishes the whole alert collection,
+so the next publish \emph{erased} the operator's work orders. Both now keep a small JSON document
+on a bind-mounted volume of their own and read it once at boot (ADR-0012). The monitor keeps its
+latched cases with the evidence that argued them, the pinned damper belief that R-7's isolation
+depends on, and the believed fan speed; the supervisor keeps its open cases, the plant baseline its
+trim is computed against, and the probe limiter, so recovery cannot disturb a room inside the 15-minute
+guard. Work orders are stored nowhere and come back anyway, because they are a pure function of the
+state that \emph{is} stored.
+
+\texttt{dcv-controller} persists nothing, and that is the same kind of decision rather than an
+omission: its hysteresis re-derives from the next reading one second later, and because a cold start
+believes every damper is at its minimum, every recomputed demand is an opening instruction. The
+error can only over-ventilate. \textbf{Two bounds travel with this.} The write is atomic (a
+temporary file and a rename), and a document that is missing or unreadable means a cold start, so
+the store is never something a boot can fail on. And the state is \emph{host-local}: a bind-mounted
+file follows the volume, not the service, so the day these containers are scheduled across machines
+this has to become a shared store, which is why it sits behind a port in \texttt{shared/control}
+rather than being called directly, and that port is the seam §\ref{sec:4.8} would cut at.
+
+\textbf{One environment variable is shared by all \factAuthoredServices{} project-authored services, and the reason
+is the same one that makes \texttt{REAL\_EPOCH} and \texttt{TIME\_SCALE} shared.} \texttt{ZONE\_COUNT}
+chooses the zone set, and every process has to agree on it: the sensor publishes per zone, the
+controller commands per zone, the monitor holds a model per zone, so one process on a different count
+computes residuals against a plant nobody else is simulating. It defaults to the six-room corridor and
+the stack has been run and watched at 12 and at 58. \textbf{58 is a hard ceiling and it belongs to
+BuildSim}, which refuses to host equipment in a room its floorplan does not have. Level 0 of the A
+building has 52 further rooms of comparable size, and \texttt{ZONE\_COUNT=60} dies naming the room it
+cannot find. A zone past the sixth borrows a real room's \emph{name and location} so BuildSim can
+carry its sensor and damper, while its volume, floor area, damper authority and occupancy schedule
+are a cycled copy of one of the six, so it is representative in size, time constant and head count
+and is not a claim about the room whose name it borrows.
+
+\textbf{What would be lost by merging components.} Merging \texttt{fault-monitor} into
+\texttt{supervisor} would destroy the authority separation of Section \ref{sec:4.3} and is the one merge that
+would change the system's safety argument. Merging \texttt{dcv-controller} into either would mean a
+crash in diagnosis stops ventilation. Merging \texttt{co2-sensor} into
+\texttt{physics-simulator} would collapse the sensing seam: the simulator would then both produce
+and report values, and R-4, which detects a sensor that has gone silent, would have nothing left
+to kill. Merging the \texttt{dashboard} in would let a slow page render compete with a control
+cycle.
+
+\textbf{Edge and cloud.} In a real building the whole control path (sensors, broker, store,
+controller, monitor, supervisor, actuators) belongs on a local \emph{edge} server, because
+ventilation must keep working when the internet does not, and because the 60 s supervisory cycle is
+a latency budget a round trip would eat into. Only two things would belong off-box: a learned
+contender, if one were ever kept, would be \emph{trained} off the critical path and only its
+coefficients shipped down; and the seven-day replay analysis is batch work that nothing waits on.
+The design keeps that line drawn even though everything currently runs in one place.

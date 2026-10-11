@@ -1,0 +1,199 @@
+# One service per folder under project/, one box on the C4 container diagram (plan constraint 4).
+# mosquitto and timescaledb are third-party images whose configuration lives in deploy/.
+name: ventilation-fault-detection
+
+x-broker: &broker
+  BROKER_URL: tcp://mosquitto:1883
+
+x-buildsim: &buildsim
+  BUILDSIM_URL: http://buildsim:9090
+
+x-journal: &journal
+  JDBC_URL: jdbc:postgresql://timescaledb:5432/ventilation
+  JDBC_USER: ventilation
+  JDBC_PASSWORD: ventilation
+
+# One notion of time for all seven project-authored processes, because six of them used to hold a
+# wall clock while the simulator held a scaled one and the disagreement landed in the residual.
+#
+#   simulated now = START_AT + (real now - REAL_EPOCH) x TIME_SCALE
+#
+# REAL_EPOCH is one real instant, and it has to be the SAME instant in every container or each
+# process runs a simulated timeline of its own. Compose substitutes from the invoking shell, which
+# evaluates `date` once before compose starts, so one `up` gives one epoch to all seven:
+#
+#   REAL_EPOCH="$(date -u +%Y-%m-%dT%H:%M:%SZ)" docker compose up -d
+#
+# The defaults here are the unscaled profile: at TIME_SCALE 1 every process keeps the SystemClock
+# it always had and neither START_AT nor REAL_EPOCH is read at all, so an `up` with no variables
+# set behaves exactly as it did before any of this existed.
+x-timeline: &timeline
+  TIME_SCALE: "${TIME_SCALE:-1}"
+  START_AT: "${START_AT:-}"
+  REAL_EPOCH: "${REAL_EPOCH:-}"
+
+# One zone set for the same seven processes, for the same reason: the sensor publishes per zone, the
+# controller commands per zone and the monitor holds a model per zone, so a process on a different
+# count computes residuals against a plant nobody else is simulating. BuildSim, the broker and the
+# journal hold no zone list and are not given one.
+#
+#   ZONE_COUNT=12 docker compose up -d
+#
+# 6 is the real corridor and the default, so an `up` with nothing set behaves exactly as before.
+# Above 6 the extra zones take the names of further real level-0 rooms, because BuildSim will not
+# host equipment in a room its floorplan does not have; 58 is where those rooms run out (R-6).
+x-plant: &plant
+  ZONE_COUNT: "${ZONE_COUNT:-6}"
+
+services:
+  buildsim:
+    build: ../buildingsim
+    command: ["start", "--host", "0.0.0.0", "--port", "9090"]
+    # Host port is configurable because a BuildSim started outside Compose — the one the
+    # lab quickstart runs with `go run ./cmd start` — already holds 9090.
+    ports: ["127.0.0.1:${BUILDSIM_PORT:-9090}:9090"]
+    healthcheck:
+      test: ["CMD", "/buildsim", "health", "--url", "http://127.0.0.1:9090/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    volumes:
+      - ./deploy/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./storage/mosquitto/logs:/mosquitto/log
+      - ./storage/mosquitto/data:/mosquitto/data
+    ports: ["127.0.0.1:1883:1883"]
+    healthcheck:
+      test: ["CMD-SHELL", "mosquitto_sub -t '$$SYS/#' -C 1 -W 2 -h 127.0.0.1 || exit 1"]
+      interval: 5s
+      timeout: 4s
+      retries: 10
+    restart: unless-stopped
+
+  timescaledb:
+    image: timescale/timescaledb:latest-pg16
+    environment:
+      POSTGRES_DB: ventilation
+      POSTGRES_USER: ventilation
+      POSTGRES_PASSWORD: ventilation
+      PGDATA: /pgdata
+    volumes:
+      - ./deploy/timescaledb/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./storage/timescaledb/data:/pgdata
+    ports: ["127.0.0.1:5432:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ventilation -d ventilation"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  physics-simulator:
+    build: ./physics-simulator
+    # The runtime half of FAULT_SPEC, so a scenario needs no restart and a fault can also be
+    # taken away again, which is what makes a recovery watchable:
+    #   curl -X DELETE '127.0.0.1:8081/faults?kind=STUCK_DAMPER&target=A115'
+    # On 127.0.0.1 like every other port published here, and this one the more deliberately,
+    # because it reaches into the plant rather than reporting on it.
+    ports: ["127.0.0.1:${PHYSICS_PORT:-8081}:8081"]
+    environment:
+      <<: [*buildsim, *timeline, *plant]
+      TICK_SECONDS: "1"
+      SEED: "42"
+      # Fault injection for the demo, passed through from the invoking shell so a scenario needs
+      # no file edit: FAULT_SPEC='STUCK_DAMPER:A115:0.15:T+1800' docker compose up -d
+      FAULT_SPEC: "${FAULT_SPEC:-}"
+      FAULT_SPEC_FILE: "${FAULT_SPEC_FILE:-}"
+    depends_on:
+      buildsim: {condition: service_healthy}
+    restart: unless-stopped
+
+  co2-sensor:
+    build: ./co2-sensor
+    environment:
+      <<: [*broker, *buildsim, *timeline, *plant]
+      SAMPLE_SECONDS: "1"
+    depends_on:
+      buildsim: {condition: service_healthy}
+      mosquitto: {condition: service_started}
+    restart: unless-stopped
+
+  damper-actuator:
+    build: ./damper-actuator
+    environment:
+      <<: [*broker, *buildsim, *timeline, *plant]
+    depends_on:
+      buildsim: {condition: service_healthy}
+      mosquitto: {condition: service_started}
+    restart: unless-stopped
+
+  dcv-controller:
+    build: ./dcv-controller
+    environment:
+      <<: [*broker, *journal, *timeline, *plant]
+    depends_on:
+      mosquitto: {condition: service_started}
+      timescaledb: {condition: service_healthy}
+    restart: unless-stopped
+
+  fault-monitor:
+    build: ./fault-monitor
+    environment:
+      <<: [*broker, *journal, *timeline, *plant]
+      CUSUM_K: "30"
+      CUSUM_H: "150"
+      CYCLE_SECONDS: "60"
+      # ADR-0012. The latch is this system's headline property — a confirmed fault stays confirmed
+      # until a technician clears it, which is what stops the supervisor oscillating — and it died
+      # with the process, so a restart was a second exit through the one the design reserves for a
+      # human. The document also carries the pinned damper beliefs, whose loss is measured as 411
+      # spurious fault events and R-7 failing 80 of 270 rooms. Unset, it keeps nothing and starts
+      # cold, exactly as it did before — the store is never a startup dependency.
+      SERVICE_STATE_PATH: /state/state.json
+    volumes:
+      # Host-side per service, the way ./storage/mosquitto/data already holds the broker's own
+      # session state. This follows the volume and not the service, so it survives a container
+      # restart and not a move to another machine; that bound is the price of a file over a store
+      # and the port in front of it is the seam for the day it has to change.
+      - ./storage/fault-monitor:/state
+    depends_on:
+      mosquitto: {condition: service_started}
+      timescaledb: {condition: service_healthy}
+    restart: unless-stopped
+
+  supervisor:
+    build: ./supervisor
+    environment:
+      <<: [*broker, *buildsim, *journal, *timeline, *plant]
+      # ADR-0012. The supervisor is the only service that acts, so it is the only one whose lost
+      # state leaves a plant mis-actuated: restarted empty it erases the operator's live work
+      # orders on its next publish, and it re-snapshots an already trimmed plant as the baseline
+      # the next solve compounds on top of. One JSON document on its own volume, written on every
+      # change and read once at boot, is what it comes back from. Unset, it keeps nothing and
+      # starts cold, exactly as it did before — the store is never a startup dependency.
+      SERVICE_STATE_PATH: /state/state.json
+    volumes:
+      # Host-side per service, the way ./storage/mosquitto/data already holds the broker's own
+      # session state. This follows the volume and not the service, so it survives a container
+      # restart and not a move to another machine; that bound is the price of a file over a store
+      # and the port in front of it is the seam for the day it has to change.
+      - ./storage/supervisor:/state
+    depends_on:
+      mosquitto: {condition: service_started}
+      timescaledb: {condition: service_healthy}
+      buildsim: {condition: service_healthy}
+    restart: unless-stopped
+
+  dashboard:
+    build: ./dashboard
+    environment:
+      <<: [*broker, *buildsim, *journal, *timeline, *plant]
+    ports: ["127.0.0.1:${DASHBOARD_PORT:-8080}:8080"]
+    depends_on:
+      mosquitto: {condition: service_started}
+      buildsim: {condition: service_healthy}
+    restart: unless-stopped

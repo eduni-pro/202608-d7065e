@@ -1,0 +1,48 @@
+# K2, the supervision seam — the cut for a different supervisor.
+#
+# TIER 2, and the reason is the whole point of the figure. The three topics it publishes are the
+# complete CONTROL contract: every consumer reaches the supervisor through one of them and
+# through nothing else, so a replacement is genuinely substitutable here. But it inherits two
+# obligations that are not topics at all — it must be the only writer of BuildSim alerts, and it
+# must journal its own strategies or R-5 case replay silently loses two of its five tables — and
+# one rule about how it must act rather than what it must say: it must announce every fan-speed
+# change on the topic, because the monitor believes that topic rather than measuring the fan.
+#
+# All three are argued in seams.md § K2. A figure that drew only the topics would have promised
+# a clean swap and hidden all three.
+#
+# VERIFIED AGAINST: FaultSubscription.java:40-42 with :11-26; SupervisionService.java:325, :336,
+# :265 (claimed through ProbeLimiter :255), :183, :299, JOURNAL_SOURCE :60, appends :266, :326,
+# :337; StrategyChanged.java:13, :26-29; BuildSimAdapter.java:250-264;
+# TimescaleJournalAdapter.java:139, :190; CaseReplay.java:44; DamperControlJob.java:92, :136;
+# MonitorRuntime.java:112.
+direction: down
+
+classes: {
+  contract: { shape: hexagon; style.stroke-width: 2 }
+  port: { shape: parallelogram; style.stroke-width: 2 }
+  t1: { style.stroke: "#1e8449"; style.fill: "#eafaf1" }
+  t2: { style.stroke: "#b9770e"; style.fill: "#fdf3e3" }
+  t3: { style.stroke: "#c0392b"; style.fill: "#fdedec"; style.stroke-dash: 4 }
+  box: { style.stroke-width: 2 }
+  doc: { shape: document; style.fill: transparent }
+}
+
+cin: "faults/{zone} -> FaultStateChanged" { class: box }
+sup: "supervisor\ndegrade · compensate · probe · release" { class: box }
+k2: "K2 · supervision seam" { class: [contract; t2] }
+c1: "strategy/{zone} -> StrategyChanged" { class: box }
+c2: "commands/{ahu}/fan-speed -> FanSpeedCommanded" { class: box }
+c3: "commands/{zone}/damper -> CommandIssued" { class: box }
+cons: "dcv-controller · fault-monitor\ndamper-actuator · dashboard" { class: box }
+md: "two obligations that are not topics\nseams.md § K2" { class: doc }
+
+cin -> sup
+sup -> k2
+k2 -> c1
+k2 -> c2
+k2 -> c3
+c1 -> cons
+c2 -> cons
+c3 -> cons
+k2 -> md

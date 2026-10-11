@@ -1,0 +1,69 @@
+# C4 level 4 — code, the compensation solver inside supervisor's control layer.
+#
+# The second of the two code diagrams, and drawn for the same reason as the first: §7.4's
+# central claim — that holding five healthy flows while multiplying the sixth is a closed form
+# and not a search — is a claim about this code's shape. The figure's job is to show that
+# solve() has no loop over candidate solutions, no convergence test and no per-room balance,
+# and to name the three closed forms and the two constants that bound it. A level 3 box called
+# "the compensation solver" cannot show any of that.
+#
+# Deliberately partial. PlantState, SupervisedCase, ProbeLimiter, WorkOrderNarrative and the
+# boundary adapters are level 3; the algebra itself is report §7.4 and is not transcribed here.
+#
+# Source: project/supervisor/src/main/java/se/ltu/d7065e/supervision/control/ and
+# project/shared/src/main/java/se/ltu/d7065e/ventilation/control/FlowSplit.java.
+direction: down
+
+service: "SupervisionService  [control]" {
+  shape: class
+  COMFORT_TARGET_FRACTION: "0.9 of the 1000 ppm limit"
+  "+ accept(DomainEvent)": "faults, readings, damper commands"
+  "- compensate()": "re-solves from the captured baseline,\nnever from the already-trimmed plant"
+  "- requestedGain(): double": "max over the faulted zones"
+}
+
+solver: "CompensationSolver  [control]" {
+  shape: class
+  HEALTHY_FLOW_TOLERANCE: "0.05 — the most a healthy room\nmay give up, or be over-supplied"
+  MAXIMUM_REQUESTED_GAIN: "4.0 — because the 0.15 damper floor\ncaps the trim at 0.25, not a tuning knob"
+  "+ solve(PlantSnapshot, Set<ZoneId> faulted, double gain): CompensationPlan": "straight-line; the only loop writes the result map"
+  "+ gainForComfort(measured, target, outdoor): double": "(C - Cout) / (Ctarget - Cout)"
+  "- trimFloor(List<VentilationZone>): double": "max over healthy of minimum / commanded"
+  "- preservingSpeed(t, h, f, s0): double": "s0 (t h + f) / (t (h + f)) — the one\nspeed that holds every healthy flow"
+  "- toleratedTrimFloor(h, f, s0): double": "how far the trim may go once the\nfan has hit its ceiling"
+}
+
+snapshot: "PlantSnapshot  [control, record]" {
+  shape: class
+  zones / airHandler: "the baseline, captured once per episode"
+  "+ zonesOtherThan(Set<ZoneId>)": "the healthy rooms"
+}
+
+split: "FlowSplit  [control, interface — in shared/]" {
+  shape: class
+  "+ openingSum(zones): double": "sum of position x authority"
+  "+ flowPerZone(zones, ahu, blockage)": "Qi = Qfan ai / sum aj"
+}
+
+plan: "CompensationPlan  [control, record]" {
+  shape: class
+  trim / fanSpeed: "what to command"
+  achievedFaultedFlowGain: "reported, not requested"
+  worstHealthyFlowDeviation: "0 while the fan has headroom"
+  limitation: "why it is not more, in words"
+  "+ compensates()": "false when there is no air path"
+  "+ none(..)": "a damper shut at 0 is unreachable"
+}
+
+service -> solver: "solve(baseline, faulted, gain)"
+solver -> snapshot: "reads the baseline openings"
+solver -> split: "openingSum(healthy)"
+snapshot -> split: ""
+solver -> plan: "returns"
+plan -> service: "five identical trims, one fan speed,\nthe achieved gain and its limitation"
+
+order: "The order inside solve(), and there is no step that repeats.\n1  clamp the request into [1, 4]\n2  sum the healthy openings h and the frozen opening f\n3  f <= 0  =>  return none(): no air path, raise a critical work order\n4  trimFloor from the dampers' own 0.15 minimums\n5  trim t = max(trimFloor, 1 / requested gain)   — the trim IS the gain\n6  if preservingSpeed(t) would exceed 1.0, raise t to toleratedTrimFloor once\n7  s = min(preserving (1 + tol), requested), clamped to the fan's range\n8  account for what was achieved, and publish a trim only if t < 1" {
+  shape: page
+  style.stroke-dash: 3
+}
+solver -> order: "" { style.stroke-dash: 2 }

@@ -1,0 +1,108 @@
+\section{Requirements}\label{sec:3}
+
+The requirements are the root of the traceability thread: each is a \textbf{testable} statement
+with a stable ID, written in \textbf{EARS} form (an optional \texttt{When} event, \texttt{While}
+state or \texttt{If} unwanted-condition precondition, then \emph{the system shall} a response),
+traced to a design element in Sections \ref{sec:4}–\ref{sec:9} and to a verification in Section \ref{sec:10}. The authoritative
+copy is \texttt{project/REQUIREMENTS.md}, reproduced from the implementation plan's §\ref{sec:4}.
+
+The \textbf{verdict column is the honest one}, and it is the most important column in this report.
+The offline evaluation harness has now run, so all seven requirements carry the experimental
+evidence their acceptance criteria name, and \textbf{four of the seven carry a failing clause}:
+R-1, R-2, R-3 and R-7, which the column says in its first words rather than at the end of a
+paragraph. Two of those four fail on the harder of two arms and pass on the one their criterion
+names, and both arms are stated. R-4's evidence is now a container kill as well as an in-JVM one,
+and R-5's is a live rebuild \emph{and} an integration test that executes its SQL.
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 10\tabcolsep) * \real{0.05}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 10\tabcolsep) * \real{0.07}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 10\tabcolsep) * \real{0.06}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 10\tabcolsep) * \real{0.28}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 10\tabcolsep) * \real{0.25}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 10\tabcolsep) * \real{0.29}}@{}}
+\toprule
+\textbf{ID} & \textbf{Type} & \textbf{Pri.} & \textbf{Statement (EARS)} & \textbf{Acceptance
+criterion, and how it is verified} & \textbf{Verdict, and the regime it holds in} \\
+\midrule
+\endhead
+R-1 & Func. & Must & \emph{When} a damper stops responding to commands, the system shall confirm the fault. &
+p95 confirmation ≤ 15 min after the first ignored command; injection harness, ≥ 20 runs &
+\textbf{Met as specified; not met in closed loop} \\*
+R-2 & Func. & Must & \emph{While} a fault is latched, the system shall keep the affected zone below 1000 ppm by
+compensation. & Zone CO₂ ≤ 1000 ppm for ≥ 95 \% of occupied minutes during the fault; end-to-end
+scenario test & \textbf{Met on the case it covers; not met at design occupancy} \\*
+R-3 & Non-f. & Must & The monitor shall raise no more than one false alarm per simulated week. & ≤ 1
+\texttt{FaultConfirmed} in a 7-day fault-free replay, scored on the \emph{worst} week; replay test
+on a fixed seed & \textbf{Not met} \\*
+R-4 & Non-f. & Must & \emph{While} readings are stale beyond three intervals, the monitor shall report unavailable
+and issue no diagnosis. & State is \texttt{BLIND}, zero fault events published; fault injection,
+kill \texttt{co2-sensor} & \textbf{Met, in-JVM and at container level} \\*
+R-5 & Non-f. & Must & The system shall make every diagnosis reconstructable. & Inputs, command, residual series,
+classification and timestamp recoverable for any \texttt{caseId}; rebuild a case from the journal &
+\textbf{Built, demonstrated live against the deployed stack, and now covered by integration
+tests} \\*
+R-6 & Non-f. & Should & The system shall identify the zone count at which the monitor misses its interval. &
+Sustained zone count where the p95 monitor cycle exceeds 60 s is reported; scaling experiment to
+breaking point & \textbf{Met, with an extrapolated answer}. And the deployed ceiling is a
+different and far smaller number \\*
+R-7 & Non-f. & Must & \emph{While} a fault is latched in one room, the system shall keep control and diagnosis of
+every other room unchanged. & Zero fault events and no control-mode change in the other five, their
+CO₂ \emph{and their airflow} inside the healthy-run band; injection in one room, ≥ 3 rooms rotated
+as the injected one & \textbf{Met on the drawn weekday; not met at design occupancy} \\
+\bottomrule
+\end{longtable}
+
+\textbf{No requirement here is Regulatory, and that is a gap rather than an absence.} Five of the
+seven are non-functional, which is the right shape for a system whose interesting claims are about
+latency, false-alarm rate, auditability, scale and isolation. But R-2's 1000 ppm is exactly the kind
+of number a regulation supplies rather than a designer, and this report asserts it without a source.
+Grounding it in the Swedish indoor-air guidance it is plainly borrowed from would convert R-2's
+threshold from an invented parameter into a cited one, and §\ref{sec:13.3}, which owns the fact that every
+physical parameter here is invented, would have one fewer row.
+
+\textbf{Every measured figure behind those verdicts is in §\ref{sec:11.2}}, one row per requirement, and
+\textbf{Appendix \ref{sec:A}} carries the same seven rows with their evidence column in full. The two failing
+pairs are the ones to read twice: R-1 and R-7 pass on the arm their own criterion names and fail on
+the harder arm beside it, and both arms are stated wherever either appears.
+
+The verdict column above is the short form. \textbf{Appendix \ref{sec:A} reprints the same seven rows with
+their full evidence column}, naming the verification each verdict rests on; §\ref{sec:11.2} reports the
+experiments themselves.
+
+\subsection{The tension these requirements set up}\label{sec:3.1}
+
+R-2 and R-7 pull against each other, and that is deliberate. R-2 needs a physical lever that
+reaches a faulted room from outside it; every such lever risks disturbing the rooms R-7 says must
+stay unchanged. With six independent fans there would be no tension and nothing to design: R-7
+would hold because nothing couples the rooms, and R-2 would have no mechanism. The shared air
+handler creates the tension, and resolving it is the supervisor's whole job (Section \ref{sec:7.4}). R-1 and
+R-3 pull against each other in the same way, through a single number: lowering the CUSUM limit
+\texttt{h} detects sooner and cries wolf more often. Section \ref{sec:11.1} reports that trade-off as
+measured rather than asserted, and §\ref{sec:11.2} now reports a sharper version of the same tension that was
+not visible when this was written: the binding knob turned out to be not \texttt{h} but what the
+CUSUM's \emph{reference} is, and the setting of it that meets R-3 outright takes R-1's closed-loop
+detection from 15 of 20 to 1 of 20 (ADR-0010).
+
+\subsection{Gaps with no requirement ID}\label{sec:3.2}
+
+Kept visible rather than discovered during marking. Each is real work with no ID attached, so
+nothing in the table above constrains it and no test can name an ID for it.
+
+\begin{itemize}
+\tightlist
+\item \textbf{Data quality.} R-4 covers \emph{stale} readings only, and only insofar as staleness
+  drives \texttt{BLIND}. Nothing requires duplicate suppression, out-of-order handling, or defines
+  what the \texttt{quality} field in \texttt{readings/\{zone\}/co2} must mean.
+\item \textbf{The dashboard.} No requirement states what the 3D view must show, how fresh it must
+  be, or what counts as the fault being visible. Its verification is ``screenshot evidence for the
+  report'', which is a deliverable and not a criterion.
+\item \textbf{R-2's bound.} That a damper stuck fully shut must produce a work order rather than an
+  attempted compensation is recorded in ADR-0008 and asserted by a unit test, but it is not itself
+  a requirement, so no acceptance criterion covers it.
+\end{itemize}
+
+\textbf{Traceability.} The five architecture viewpoints map onto this document so that nothing is
+left unverified: \emph{context} (4.1), \emph{functional} (4.2–4.5), \emph{information} (5–6),
+\emph{behavioural} (8), \emph{deployment} (9). Section \ref{sec:10} closes the loop from each requirement
+back to a verification, and Section \ref{sec:11.6} lists every verification that has not yet run.\label{sec:3end}

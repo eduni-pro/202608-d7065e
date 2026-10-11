@@ -1,0 +1,379 @@
+\section{Autonomous services and data pipeline}\label{sec:7}
+
+\subsection{The inner loop, and why it is deliberately plain}\label{sec:7.1}
+
+\texttt{dcv-controller} runs \textbf{once a second} per room. It reads
+\texttt{readings/\{zone\}/co2} and publishes \texttt{commands/\{zone\}/damper}, through a rule with
+three parts:
+
+\begin{itemize}
+\tightlist
+\item \textbf{A hysteresis band.} Above \textbf{800 ppm} the damper follows a proportional ramp;
+  below \textbf{650 ppm} it returns to the 0.15 minimum; \emph{between} the two it holds whatever
+  position it has. The band is what stops a vane chattering as noise crosses one threshold.
+\item \textbf{A ramp, not a switch.} From the minimum at 800 ppm the opening rises linearly to
+  fully open at the \textbf{1000 ppm comfort limit}: position
+  $= 0.15 + \frac{C - 800}{200}(1 - 0.15)$, clamped open at and above the limit. So a room at the
+  limit is already asking for everything the plant can give it.
+\item \textbf{A freshness check and a publish dead band.} A reading staler than three sample
+  intervals (3 s) produces no command at all: the position is held, nothing is announced. A
+  command that differs from the current position by less than \textbf{0.02} is not published,
+  because a stream of no-op commands would bury the step the observer is looking for.
+\end{itemize}
+
+A room whose \texttt{strategy/\{zone\}} says \texttt{DEGRADED} is not commanded at all, and a room
+in \texttt{COMPENSATING} follows the supervisor's trim with CO₂ getting no vote. That is enforced
+twice: once by an explicit guard in the control loop, and once by the entity invariant. Asking a
+degraded \texttt{VentilationZone} for a normal control command throws.
+
+This is the simplest thing that meets the requirement, and four reasons make simplicity the right
+choice rather than a shortcut. First, the outer loop has to \emph{model} the inner one, and an
+observer predicting a model-predictive controller inherits that controller's complexity as model
+error, which is exactly what the residual cannot distinguish from a fault. Second, and sharpest,
+\textbf{integral action would mask the fault}: a PID controller facing a room that will not respond
+winds up its integral term and pushes harder, which is precisely how a competent controller hides a
+stuck damper from everything downstream. The plain rule commands what the concentration asks for and
+nothing more, so the gap between command and effect stays visible. Third, a plain rule is verifiable,
+and it is the component that must keep working when everything cleverer has crashed. Fourth, demand
+control is a solved problem and improving it would earn nothing the course grades.
+
+Two thresholds are deliberately \emph{not} configurable: the 1000 ppm comfort limit and the 0.15
+damper minimum come from the shared topology rather than from deployment config, because letting a
+deployment override either would let configuration move the goalposts the evaluation measures.
+
+\subsection{The observer: judging what the command owed}\label{sec:7.2}
+
+The autonomous service proper is \texttt{fault-monitor}, and its core is the \textbf{observer}.
+Each damper command is a step. The observer integrates the same mass balance of Section \ref{sec:6.3},
+driven by the \emph{commanded} position and the air handler's state, and predicts the CO₂
+trajectory that step should have produced over roughly the following ten minutes. The
+\textbf{residual} is $r = C_\text{measured} - C_\text{predicted}$: positive means the room is
+dirtier than the command should have left it.
+
+\textbf{The observer uses no occupancy, and that is the answer to the project's central risk.} A
+prediction needs a generation term, and head-count is the one thing a real building does not
+measure. Three design choices together replace it:
+
+\begin{enumerate}
+\tightlist
+\item \textbf{Judge only commanded step responses.} The \emph{shape} of a step response depends on
+  airflow and volume, not on how many people are in the room; a constant occupancy shifts the
+  level, not the response to actuation. Judgement is restricted to a \textbf{10 min window} after a
+  command, and only a command that moves the damper by at least \textbf{0.05} arms that window. A
+  nudge smaller than five points of travel is not a step response worth judging.
+\item \textbf{Estimate generation from quasi-steady state, then stop updating it.} With
+  $dC/dt = 0$ the balance gives $G_\text{est} = Q\,(C_\text{measured} - C_\text{out})$ directly
+  from quantities the system already has. It is smoothed by a first-order filter at gain
+  \textbf{0.3} and is updated \textbf{only while the observer is not judging}: not inside an open
+  window, not in \texttt{SUSPECT}, not while a case is latched. So occupancy learned before a step
+  informs the prediction and occupancy during the step cannot contaminate it.
+\item \textbf{Guard with a design-occupancy ceiling.} The estimate is invalid exactly when
+  quasi-steadiness is: a room filling up mid-window produces a residual the damper did not cause.
+  The guard is a \textbf{second trajectory integrated in parallel} at the room's design occupancy,
+  which the observer recovers from the damper authority alone as
+  $n_\text{design} = (A_i - 0.35\,\text{area})/7$, inverting the ventilation guideline of Section
+  \ref{sec:6.1}. Suspicion is measured against \emph{that} ceiling, so an unmodelled arrival cannot by itself
+  confirm a fault.
+\end{enumerate}
+
+Between commands the prediction is pulled toward the measurement by a first-order filter at gain
+0.3 rather than snapped onto it. That choice is worth a sentence because it is quantitative: a hard
+re-anchor would inject a full $\sigma$ of sensor noise into the prediction at every sample, which
+raises the residual's standard deviation by $\sqrt{2}$ and, by the run-length formula of Section
+\ref{sec:7.3}, would turn a 79-day in-control run length into roughly half a day. The same reasoning decides
+what a step anchors to: the \emph{filtered} prediction, not the single raw sample taken at the
+moment of the command.
+
+That guard is not free, and Section \ref{sec:13.7} states its cost: in A145 (20 seats) or A115 (10 seats), a
+room holding two people has a ceiling far above anything a stuck damper produces, so the fault is
+invisible until the room fills, and detection delay therefore depends on occupancy. The harness
+prices that dependency at its two ends rather than describing it: with every room at design occupancy
+the p95 confirmation delay is \textbf{6 min}, and on a drawn weekday (the same fault, the same
+limit, the same seeds) it is \textbf{257 min} (§\ref{sec:11.2}). The closed-loop arm turns out to carry the
+points between them, because its 20 runs are 20 \emph{different} drawn weekdays and the harness
+records the head count present at each first ignored command. \textbf{Appendix \ref{sec:F.2}} gives that
+stratification and states plainly what kind of evidence it is: a stratification of the runs that
+happened, not a sweep of a controlled input.
+
+\subsection{Residual, CUSUM, state machine, classifier}\label{sec:7.3}
+
+\textbf{The statistic} is a \textbf{two-sided CUSUM} on the residual. Its upper arm, which every
+figure in this report is scored on, is:
+
+\[ S_0 = 0, \qquad S_t = \max\!\big(0,\; S_{t-1} + r_t - k\big), \qquad \text{alarm when } S_t \ge h, \]
+
+with $k = 30$ ppm $= 1\sigma$ and $h = 150$ ppm $= 5\sigma$. The reference value $k$ is set to
+$\sigma$ because a stuck damper produces a large growing bias rather than a subtle shift, which
+makes the statistic insensitive to noise and to small model errors; subtracting $k$ at every sample
+is also what makes a noise tail draw decay away instead of accumulating. The limit $h$ comes from
+R-3 through Siegmund's approximation, which the monitor carries in code so the tuning can be
+re-derived rather than remembered: at $(k,h) = (1\sigma, 5\sigma)$ the in-control average run length
+is $\approx 1.1\times10^{5}$ samples $\approx 79$ days at 60 s, an order of magnitude inside R-3's
+one false alarm per week. Why the CUSUM rather than a raw threshold: accumulation catches a
+\emph{small persistent} bias long before any single-sample threshold fires, which is the regime a
+partly stuck damper lives in.
+
+\textbf{The lower arm} is the mirror, $S^{-}_t = \max\!\big(0,\; S^{-}_{t-1} - r_t - k\big)$, and it is
+\emph{guarded}: it accumulates against the 420 ppm outdoor floor rather than against the prediction,
+so it sees a sensor drifting downward, which under-ventilates an occupied room, without
+accusing a room that has simply emptied. Section \ref{sec:13.1} states what that guard can and
+cannot catch, and Appendix \ref{sec:F} accounts for the nine of twenty-six pre-fix false confirmations that
+came from this arm before ADR-0010 corrected the plausibility guards.
+
+\textbf{One subtlety that matters, and that I would not have guessed before building it: the
+residual that is published is not the residual that is accumulated.} The residual on
+\texttt{residuals/\{zone\}} is the honest one, measured minus predicted, because that is what a
+human and the dashboard should see. The CUSUM is driven instead by measured minus the
+\emph{plausibility ceiling} of Section \ref{sec:7.2}, which is the conservative quantity: it is what makes an
+unmodelled arrival unable to confirm a fault. The ceiling residual is \emph{subtracted}, not clipped
+at zero, because clipping would rectify the sensor noise, give the statistic a positive mean and
+destroy the in-control run length the previous paragraph just derived. And that run length is the
+entire basis of R-3.
+
+\textbf{Two thresholds, not one.} Opening a case uses a lower bar than confirming it: the statistic
+passing \textbf{90 ppm} (0.6 $h$) moves a room to \texttt{SUSPECT}, and only the full $h$ held for
+\textbf{two consecutive cycles} confirms. Persistence is the real defence against a tail draw: a
+single excursion is gone on the next sample, since the CUSUM subtracts $k$ from every one, while a
+stuck damper clears $h$ every cycle. A suspect room that goes quiet for \textbf{three cycles}
+returns to \texttt{HEALTHY}. Rooms need \textbf{three usable cycles} to leave \texttt{WARMUP}, and
+readings staler than \textbf{three sample intervals} (180 s at the 60 s monitor cadence) drive
+\texttt{BLIND}.
+
+\textbf{The state machine} runs one instance per room:
+\texttt{WARMUP → HEALTHY → SUSPECT → CONFIRMED → COMPENSATING → SERVICED → WARMUP}, with
+\texttt{BLIND} reachable from \texttt{WARMUP}, \texttt{HEALTHY} and \texttt{SUSPECT} on readings
+stale beyond three intervals. Four properties of its shape are the design:
+
+\begin{itemize}
+\tightlist
+\item \textbf{\texttt{BLIND} is not a fault.} It reports unavailable and issues no diagnosis (R-4),
+  and there is \emph{no edge} from it into \texttt{SUSPECT} or \texttt{CONFIRMED}: missing data is
+  not evidence of a fault. It always returns to \texttt{WARMUP}, never into an open case, so the step
+  response is re-identified before judging resumes.
+\item \textbf{\texttt{SUSPECT} can recover; \texttt{CONFIRMED} cannot.} \texttt{SUSPECT → HEALTHY}
+  is the machine's one recovery edge, taken when $S$ falls back below $h$ before the classifier
+  confirms. The asymmetry is deliberate.
+\item \textbf{\texttt{CONFIRMED} and \texttt{COMPENSATING} are latched}, and the only exit is
+  \texttt{serviced()}. That is the masking defence: compensation shrinks the residual that found the
+  fault, so a monitor that believed its own shrinking residual would be talked out of a true
+  diagnosis by the evidence its own response destroyed.
+\item \textbf{The active probe re-confirms but cannot clear.} Every 30 min a latched room's monitor
+  \emph{asks} for a damper step (as an \textbf{event}, never a command, which is §\ref{sec:4.3}'s authority
+  rule holding even here), and the supervisor issues it, rate-limited to one per room per 15 min and
+  per-room because a fan-speed probe would perturb all six. A damper being compensated answers a step
+  exactly as a repaired one does, so the outcome is recorded either way and the case stays latched
+  until service.
+\end{itemize}
+
+Every one of those numbers is a named field with a documented default rather than a literal buried
+in a branch, which is what let the register of §\ref{sec:11.6} name what each experiment must re-measure;
+\textbf{Appendix \ref{sec:D.1}} lists all eighteen. One of them deserves an argument rather than a line in a
+list: the plausibility ceiling runs at \textbf{1.25} times design occupancy, and 25 \% of headroom
+above design is a deliberately desensitising choice.
+
+\textbf{Appendix \ref{sec:D.1}} prices that choice rather than leaving it asserted.
+\texttt{MonitorParameters.\allowbreak withOccupancyCeiling} lets T-24 sweep the headroom against a control arm
+with nothing injected, and the sweep says what tightening the ceiling to 1.00 would buy and cost: one
+more closed-loop detection and some speed, paid for with 2 false alarms in 20 fault-free runs where
+the shipped 1.25 latches 0 of 20. The headroom is therefore not a free lever between R-1 and R-3, and
+below 1.00 it stops bounding occupancy at all. That control arm is also what makes the shipped
+setting's \textbf{15 of 20} closed-loop detections real detections rather than R-3's false alarms
+landing on a room that happened to have a fault in it.
+
+\textbf{The classifier} is a short decision tree over four signals, with an explicit
+\texttt{UNCLASSIFIED} branch that alerts a human rather than acting:
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 4\tabcolsep) * \real{0.26}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 4\tabcolsep) * \real{0.30}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 4\tabcolsep) * \real{0.44}}@{}}
+\toprule
+\textbf{Signal} & \textbf{Test} & \textbf{What it rules in or out} \\
+\midrule
+\endhead
+Common-mode count & How many of the six residuals are raised; 5 of 6 is the threshold & Many
+together ⇒ plant-wide, so a blocked filter; one alone ⇒ local \\
+Plant fan power & Flat within 5 \%, or raised beyond 10 \% of the affinity-law prediction & Power
+up per unit of flow ⇒ blocked filter; flat ⇒ the fan is doing what it was told \\
+Step amplitude & Against $2\sigma = 60$ ppm & Distinguishes a real response from noise; a drifting
+sensor still shows the right \emph{shape} \\
+Overnight floor & Within 100 ppm of the 420 ppm outdoor level over 24 h & A wrong floor with an
+empty building ⇒ sensor drift, since the room must decay to outdoor \\
+\bottomrule
+\end{longtable}
+
+The tree itself is four lines, evaluated in order, where \emph{localised} means simply ``not common
+mode'':
+
+\begin{footnotesize}
+\begin{verbatim}
+common mode AND power up                              -> BLOCKED_FILTER
+localised AND step shape unchanged AND floor wrong     -> SENSOR_DRIFT
+localised AND power flat AND step shape NOT unchanged  -> STUCK_DAMPER
+otherwise                                              -> UNCLASSIFIED
+\end{verbatim}
+\end{footnotesize}
+
+Two properties of this design are deliberate. First, \texttt{UNCLASSIFIED} is a \emph{destination},
+not an error path: it confirms the residual and declines to name a cause, producing a work order
+with an open question rather than a confident wrong answer. Second, the classifier gathers evidence
+\textbf{for and against all three hypotheses regardless of which one wins}, so the work order a
+technician reads carries the reasoning rather than the verdict, including, for instance, the
+measured plant power excess even when no signature matched. Localisation comes from \emph{comparing
+rooms}, not from a fourth invented signal: that was an explicit instruction in the risk register,
+and Section \ref{sec:13.1} reports what following it cost, which turns out to be more than I expected.
+
+\textbf{What the tree actually emits, measured (T-15).} The table above is what the tree is
+\emph{for}; \texttt{ConfusionMatrixExperiment} measures what it does, over \textbf{218 runs} of the
+four injectable faults plus a no-fault arm. The headline is the least flattering result in this report
+and belongs in the body: \textbf{one of the four mechanisms is classified correctly}. Over seeds 42
+and 1--10, \texttt{STUCK\_DAMPER} is named correctly in 8 of 11 runs; \texttt{BLOCKED\_FILTER} comes
+out \texttt{UNCLASSIFIED} 11 of 11, exactly as Section \ref{sec:4}'s cross-room analysis predicts, with its
+fan-power excess still attached so the work order points at the plant; \texttt{SENSOR\_DRIFT} is
+\textbf{never emitted: 0 of 76 runs from a ramp and 0 of 76 from a step offset}, because its leaf
+wants an informative overnight floor \emph{and} a step response that still matched in the same
+instant and the two injectable sensor mechanisms supply one each and never both; and the stuck-damper
+leaf fires \emph{with no step on record}, because a probe is requested through the evidence on
+\texttt{FaultStateChanged}, so at the moment of classification no step has been judged, ever. That
+last one is deliberate rather than an oversight (requiring positive evidence of an unanswered step
+was tried and measured, and it left the tree classifying nothing at all), so every diagnosis reached
+without a judged step now says in its evidence that it rests on two signals rather than three and that
+a probe has been requested. Reordering the pipeline so the probe lands first was built and measured as
+T-35 and is \textbf{not adopted}: the third signal is blind after a confirmation rather than merely
+late (§\ref{sec:13.6}). \textbf{Appendix \ref{sec:D.2}} carries the matrix, the three off-diagonal mechanisms with the
+arithmetic that closes each, and T-35's 176 paired runs.
+
+\subsection{Compensation: the trim is the gain}\label{sec:7.4}
+
+This is the strongest technical result in the project, and it is a closed form rather than a
+search. The question is: a damper is frozen partly open, so that room is starved. The only levers
+are the other five dampers and one shared fan speed. Can the faulted room be given more air
+\emph{without} taking any from the five healthy rooms?
+
+Write $a_i = p_i A_i$ for each opening, $f$ for the frozen room's opening, $h$ for the sum of the
+healthy openings at the baseline and $A_0 = h + f$ for the total, then trim \textbf{every healthy
+damper by one common factor} $t \in (0,1]$ and raise the fan from $s_0$ to $s$. \textbf{Appendix \ref{sec:E.1}}
+carries the four lines of algebra; two facts fall straight out of them and together they are the
+whole mechanism.
+
+\textbf{First: one fan speed holds every healthy room's flow at once.} The healthy flow ratio
+contains no room index, because the trim is \emph{common} and the split is \emph{proportional}, so
+every healthy room's share of the total opening changes by the same factor and a single scalar
+$s = s_0\,A(t)/(t\,A_0)$ holds all five at their baseline simultaneously. There is nothing per-room
+to balance and no iteration, which is why the supervisor publishes one fan-speed command and five
+identical trims rather than solving a five-dimensional problem.
+
+\textbf{Second: at that speed the frozen room's flow is multiplied by exactly $1/t$.}
+\textbf{The trim \emph{is} the gain.} Trim the healthy dampers to a quarter and the starved room gets
+four times the air, with the other five rooms' airflow bit-for-bit unchanged.
+
+\textbf{Third, and the reason this is deployable: $Q_\text{nom}$ and $\beta$ cancel.} Both appear
+in $Q_i$ and in $Q_i$'s baseline, so they vanish from both ratios. The supervisor therefore
+never needs to observe the filter blockage or know the plant's nominal flow to compensate
+correctly. It needs only the openings and the baseline speed, which it already commands. A
+compensation scheme that required $\beta$ would require diagnosing a second fault before answering
+the first.
+
+\textbf{Where it runs out.} Two bounds on $t$, both physical rather than numerical, and one case
+no lever reaches at all. All three reported with R-2 rather than buried:
+
+\begin{itemize}
+\tightlist
+\item \textbf{The dampers' floor.} No healthy damper may go below its own minimum, so
+  $t \ge \max_i(\text{minimum}_i / p_i)$. With the healthy dampers modulating around 0.60 and the
+  floor at 0.15 the trim bottoms out at 0.25, which caps the gain near fourfold; the solver's
+  \texttt{MAXIMUM\_REQUESTED\_GAIN} is 4.0 for that reason and not as a tuning knob.
+\item \textbf{The fan's ceiling.} $s(t) > s_0$ always, so holding the healthy flows is paid for out
+  of fan headroom, and $s$ is capped at 1.0. The plant runs normally at $s_0 = 0.7$, which leaves
+  43 \% more air to call on, and that is what makes the lever a lever. When the plant is
+  \emph{already} at full speed there is no headroom at all, and the solver neither abandons
+  compensation nor quietly starves the healthy rooms: it trims only as far as
+  \texttt{HEALTHY\_FLOW\_TOLERANCE} = 0.05 permits, so each healthy room gives up at most 5 \% of
+  its airflow, and it \emph{reports the smaller gain it actually achieved}. That 5 \% is kept on a
+measurement rather than assumed: the over-supply side was swept from 0.05 to unbounded and bought
+R-2 nothing (ADR-0009, §\ref{sec:11.2}). Flow is then
+  redistributed rather than created, which is the honest description of a saturated fan.
+\item \textbf{A damper stuck fully shut is unreachable.} The gain multiplies an airflow of zero, so
+  no trim and no fan speed touches it. The solver returns \texttt{CompensationPlan.none} saying so,
+  and the supervisor raises a \emph{critical} work order with occupancy advice rather than
+  pretending. This is R-2's stated bound, and Section \ref{sec:13} concedes the uncomfortable part: ADR-0008
+  defines ``stuck shut'' \emph{as} stuck at 0.15, so R-2's scenario is pinned at the one stuck-shut
+  position that is reachable. The unreachable case is excluded by a parameter, not by physics.
+\end{itemize}
+
+\textbf{The second lever, and why the trim alone was not enough.} The derivation above assumes there
+is a trim to make, and in the regime R-2's drawn weekday covers there is not: the healthy rooms are
+below the inner loop's 800 ppm opening threshold when a plan is solved, so they are already on their
+0.15 floor, the trim floor is $t = 1$, and the closed form returns the plant unchanged, a
+supervisory loop worth nothing and, at design occupancy, less than nothing (§\ref{sec:11.2}). The split law
+gives a second lever, because $Q_i$ is linear in $s$, so raising the fan multiplies \emph{every}
+room's flow including a frozen room's. But that lever is \textbf{not selective}: with no trim in
+force the frozen room's gain and the healthy rooms' over-supply are the same number, so ADR-0008's
+43 \% of headroom above $s_0 = 0.7$ is spendable selectively only \emph{through} a trim, and without
+one the solver may spend it only as far as \texttt{HEALTHY\_FLOW\_TOLERANCE} = 0.05 permits.
+\textbf{Appendix \ref{sec:E.2}} derives the bound and prices the raise, which is not free: fan power goes as
+$s^3$, so 0.70 to 1.00 costs 2.92 times the fan power, and the work order states that multiple
+rather than implying it.
+
+\textbf{The measured instance.} At the parameters of Section \ref{sec:6}, with the five healthy dampers at
+0.60, the fan at its normal 0.70 and A145's damper frozen at the 0.15 floor, A145 receives
+\textbf{59.69 l/s} against its 165.9 l/s design flow. The solver trims the healthy dampers to
+$t = 0.360$ (0.60 → 0.216) and raises the fan to $s = 0.880$, which restores A145 to
+\textbf{165.9 l/s, its full design flow}, while the five healthy rooms' flows are unchanged
+\textbf{to within $10^{-15}$}: eight decimal places and more.
+
+\textbf{Neither bound binds here, and that is the air handler's doing rather than the solver's.}
+An earlier revision of this report read the same case off the \emph{superseded} 0.42 m³/s plant and
+found the trim bottoming out at its floor just as the fan reached its ceiling: an elegant
+coincidence, and a property it attributed to the topology. On the plant the repository now ships,
+0.59 m³/s, the two bounds are not close: the trim stops at 0.360 against a floor of \textbf{0.25}
+(the tightest healthy damper's $0.15/0.60$), and the fan at 0.880 against a ceiling of
+\textbf{1.00}. What changed is not the closed form but the plant it is evaluated on. Re-sizing the
+air handler to cover its design condition at the speed it actually runs (Section \ref{sec:13.3}) bought
+compensation margin that the earlier sizing did not have, and the coincidence was an artefact of
+being short of air rather than a property of the topology.
+
+\textbf{That margin is this case's and must not be read as the system's.} This is the single-room
+frozen-damper case with five healthy neighbours modulating at 0.60 and the rest of the building
+behaving. Section \ref{sec:11.2}'s measured multi-room runs at design occupancy are the regime where it runs
+out: there the healthy dampers are already near their own floors when a plan is solved, the fan
+reaches \textbf{1.00} on one of five seeds with every zone faulted and no damper left to trim, and
+the achieved gains run \textbf{1.05 to 1.77} against the 2.3 the comfort rule asks for. Headroom in
+the one-room case is not headroom in the regime R-2 fails in. Section \ref{sec:11.3} gives the per-room
+numbers; Section \ref{sec:10} names the test that pins them.
+
+\subsection{The data pipeline}\label{sec:7.5}
+
+Readings travel through one path that serves live control, diagnosis, the dashboard and the
+evaluation. \texttt{co2-sensor} publishes to \textbf{mosquitto}, which decouples one producer from
+four consumers and turns a dead publisher into silence rather than a blocked caller, silence being
+exactly what R-4 is written to detect. \texttt{dcv-controller}, \texttt{fault-monitor} and
+\texttt{supervisor} each append to \textbf{TimescaleDB}: commands, readings, residuals and
+decisions, strategies. The dashboard queries windows from the same store and subscribes to the
+broker for live state.
+
+\textbf{Data quality} is judged at the edge that can see it, and there is more of it than the
+requirements ask for. \texttt{co2-sensor} stamps every reading \texttt{GOOD}, \texttt{STALE},
+\texttt{MISSING} or \texttt{DUPLICATE}: a value identical to the last one is \texttt{DUPLICATE}
+until it has been unchanged past the staleness window, when it becomes \texttt{STALE}; a failed read
+publishes \texttt{MISSING} \emph{carrying the last known value}, never a fabricated one, and nothing
+at all is published before the first successful read. The comparison is exact rather than
+tolerance-based, deliberately, because BuildSim round-trips values as fixed-decimal strings and a
+tolerance would classify slow genuine drift, a fault, as a duplicate. Downstream, the controller
+drops anything not \texttt{GOOD} and drops out-of-order redelivery, and the dashboard's projection
+accepts a reading only if it is strictly newer than the one it holds, so QoS-1 redelivery cannot
+rewrite history.
+
+The honest gap is not in the mechanism but in the \emph{specification}: no requirement says what
+\texttt{quality} must mean, what must happen to a duplicate, or how out-of-order arrivals must be
+handled, so the behaviour above is a reasonable invention rather than something a test can hold to
+an agreed criterion. That is Section \ref{sec:3.2}'s first gap.
+
+\textbf{What is retained}: everything, for the length of a run, in the hot store only. There is no
+cold tier. The cold path the plan scheduled as Parquet (T-22) exists as CSV plus a one-command
+conversion instead: the harness writes nine tables totalling \textbf{430\,797 bytes} into
+\texttt{evaluation/results/} and generates \texttt{export.sql} beside them, whose nine \texttt{COPY}
+statements convert every one of those tables to Parquet, one statement each. Parquet itself is not vendored, and the reason is
+measured rather than asserted: \texttt{parquet-hadoop} 1.15.2 with \texttt{hadoop-common} 3.4.1
+closes over 98 jars and 64.8 MiB, and \texttt{duckdb\_jdbc} 1.5.6.0 over 1 jar and 81.2 MiB, against
+roughly 150 kB of measurement data.

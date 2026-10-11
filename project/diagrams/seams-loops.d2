@@ -1,0 +1,55 @@
+# The two control loops and how they nest — the structural companion to seams-overview.d2.
+#
+# The inner loop acts every second on CO2 alone and knows nothing about faults. The outer loop
+# takes the inner loop's own commands as one of its inputs, judges once a minute whether the
+# plant did what those commands asked, and when it did not, the supervisor takes the room away
+# from the inner loop through strategy/{zone} rather than commanding over the top of it.
+#
+# Seam keys are repeated as markers so the loop structure and the substitution boundaries can be
+# read against each other. They are argued in seams.md, not here. The algebra is report §7 and
+# the two code diagrams.
+#
+# VERIFIED AGAINST: control.seconds=1, open.above.ppm=800 and close.below.ppm=650 in
+# dcv-controller/src/main/resources/application.properties; the quality gate ZoneControl.java:44
+# and the freshness check :101, :108; monitor.cycle=${CYCLE_SECONDS:60}s and CUSUM_K=30,
+# CUSUM_H=150 in docker-compose.yml, and Topology.java:74, :77; MonitorState.java:17-23;
+# ZoneMonitor.evaluate:225 and the publishes :722, :732; the supervisor's actions
+# SupervisionService.java:168, :180, :304 and the probe :254-265;
+# BuildSimStateAdapter.exchange:34-48; HvacCommandApplier.java:66-71, :73, :88.
+direction: down
+
+classes: {
+  contract: { shape: hexagon; style.stroke-width: 2 }
+  port: { shape: parallelogram; style.stroke-width: 2 }
+  t1: { style.stroke: "#1e8449"; style.fill: "#eafaf1" }
+  t2: { style.stroke: "#b9770e"; style.fill: "#fdf3e3" }
+  t3: { style.stroke: "#c0392b"; style.fill: "#fdedec"; style.stroke-dash: 4 }
+  box: { style.stroke-width: 2 }
+  doc: { shape: document; style.fill: transparent }
+}
+
+plant: "physics-simulator + BuildSim · the plant · ~1 s tick" { class: box }
+sensor: "co2-sensor · samples, judges quality, publishes" { class: box }
+inner: "dcv-controller · INNER LOOP ~1 s · band 800/650 ppm" { class: box }
+act: "damper-actuator · validates · clamps to 0.15 · applies" { class: box }
+obs: "fault-monitor · OUTER LOOP ~60 s · residual · CUSUM · latch" { class: box }
+sup: "supervisor · degrade · compensate · probe · release" { class: box }
+
+k1: "K1 · sensing seam" { class: [contract; t2] }
+k4: "K4 · inner-loop seam" { class: [contract; t2] }
+k3: "K3 · diagnosis seam" { class: [contract; t1] }
+k2: "K2 · supervision seam" { class: [contract; t2] }
+
+plant -> sensor
+sensor -> k1
+k1 -> inner
+inner -> k4
+k4 -> act
+act -> plant
+k1 -> obs
+k4 -> obs
+obs -> k3
+k3 -> sup
+sup -> k2
+k2 -> inner: "strategy/{zone}"
+k2 -> obs

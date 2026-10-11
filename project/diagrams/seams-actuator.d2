@@ -1,0 +1,43 @@
+# K4 and K5, the two seams on the command topics — where a different control law goes in, and
+# where a real DDC panel goes in. Drawn together because neither reads correctly alone: K4 is
+# not a sole-authority seam precisely because of what else publishes to the topic K5 subscribes.
+#
+# K4 TIER 2: the control law is free to change, but it does not own its output topic (two
+# publishers) and every command must carry a CommandId and a reason. K5 TIER 2: a real panel
+# subscribes the same two topics, provided it keeps the validation and the 0.15 damper floor —
+# which is load-bearing, because the monitor's flow model believes the COMMANDED position.
+# Both arguments are in seams.md § K4 and § K5.
+#
+# VERIFIED AGAINST: Topics.java:20, :24; CommandIssued.java:12 with :9-11 and :20-22;
+# FanSpeedCommanded.java:12; DamperControlJob.java:122, :91-92; SupervisionService.java:265,
+# :336; DamperActuatorMain.java:55-56; HvacCommandApplier.java:56-71, :76-85, :73, :88, :18-20;
+# AhuFlowModel.java:199; MonitorRuntime.java:111-112.
+direction: down
+
+classes: {
+  contract: { shape: hexagon; style.stroke-width: 2 }
+  port: { shape: parallelogram; style.stroke-width: 2 }
+  t1: { style.stroke: "#1e8449"; style.fill: "#eafaf1" }
+  t2: { style.stroke: "#b9770e"; style.fill: "#fdf3e3" }
+  t3: { style.stroke: "#c0392b"; style.fill: "#fdedec"; style.stroke-dash: 4 }
+  box: { style.stroke-width: 2 }
+  doc: { shape: document; style.fill: transparent }
+}
+
+inner: "dcv-controller\nthe inner loop's control law" { class: box }
+sup: "supervisor\nthe T-18 probe, and the fan" { class: box }
+k4: "K4 · inner-loop seam" { class: [contract; t2] }
+c4: "commands/{zone}/damper -> CommandIssued" { class: box }
+c5: "commands/{ahu}/fan-speed -> FanSpeedCommanded" { class: box }
+k5: "K5 · actuation seam" { class: [contract; t2] }
+act: "damper-actuator\nthe only writer of actuator state" { class: box }
+md: "the three conditions · evidence\nseams.md § K4, § K5" { class: doc }
+
+inner -> k4
+sup -> k4: "the probe, same topic"
+k4 -> c4
+sup -> c5
+c4 -> k5
+c5 -> k5
+k5 -> act
+k5 -> md

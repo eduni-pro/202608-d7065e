@@ -1,0 +1,293 @@
+\section{Risks and critical reflection, in full}\label{sec:I}
+
+\S\ref{sec:13} states each finding, its verdict and its bound. This appendix carries the mechanism behind
+each one. The subsection numbering follows \S\ref{sec:13} so a reader can move between them.
+
+\subsection{Four functional holes, two of which are now closed (\texorpdfstring{\S\ref{sec:13.1}}{13.1} in full)}\label{sec:I.1}
+
+\textbf{A damper stuck \emph{wide open} is invisible at the deployed setting.} The statistic is
+two-sided: the lower arm is the exact mirror of the upper one, $S_\text{low} = \max(0, S_\text{low}
+- r - k)$, sharing $k$ and $h$ so that symmetry cost no new tuning parameter. The deployed default
+is the \emph{guarded} lower arm, driven by the measurement against the trajectory of an empty room
+clamped at the 420 ppm outdoor concentration, and it is what Section \ref{sec:11.2}'s headline figures are
+measured on. Two experiments deliberately run the arm \emph{off} beside it, as a control rather
+than as a configuration: 180 of T-34b's 540 observed rooms and one of T-26's four regimes. That guard is
+what catches the low-side fault with a safety consequence: a sensor drifting downward makes the
+inner loop believe the room is cleaner than it is and \emph{under-ventilate an occupied room}, and
+it betrays itself by reading below the outdoor concentration, which no amount of ventilation can
+produce. What the guard cannot catch is the other low-side fault. ``Everybody left the room''
+explains a room that stopped getting stuffier at least as well as ``the damper ignored the close
+command'' does, and nothing inside a ten-minute judging window separates them, so a damper stuck
+wide open stays \texttt{HEALTHY}. The unguarded setting sees both and costs more false confirmations
+than R-3 allows, which the monitor's own fault-free-week test measures. That is the honest form of
+this hole: an observer with no occupancy signal \emph{cannot} have both, and the choice was made in
+R-3's favour.
+
+\textbf{\texttt{serviced()} had no transport, so a latched false positive could not be cleared in
+deployment. And now it has one.} \texttt{FaultCase.serviced()} is the only exit from a latched
+case, and for most of this project's life nothing reached it: no MQTT topic, no REST endpoint, no
+dashboard action, only the unit tests and the harness. A false latch was \textbf{permanent} and the
+technician who repaired the damper had no way to tell the system so. That hole is closed.
+\texttt{ServiceReported} travels on \texttt{service/\{zone\}}, \texttt{fault-monitor} subscribes to
+it through an adapter that validates the report against the open case, and the dashboard exposes
+\texttt{POST /api/zones/\allowbreak \{zone\}/cases/\allowbreak \{caseId\}/serviced}, answering 202 when it is accepted, 404
+for a room or case that does not exist, 409 when that case is not latched, and 503 when the broker
+is unreachable. The whole
+\texttt{CONFIRMED}~→~\texttt{COMPENSATING}~→~\texttt{SERVICED}~→~\texttt{WARMUP}~→~\texttt{HEALTHY}
+lifecycle is executable and tested end to end, including that a reported repair unwinds the
+compensation and hands the five healthy rooms back to the inner loop. \textbf{This matters most to
+the latching trade-off below}, whose whole argument is that a false positive costs only one
+technician visit: an argument that was being made against a system in which it cost that visit
+\emph{and} a permanently wrong work order. It is now true as stated. One thing is deliberately
+absent: there is no button on the HTML status page, because that page is server-rendered with a
+meta refresh and no JavaScript, so a form post would land the operator on a JSON body. The endpoint
+is the operator path.
+
+\textbf{Blocked filters are plant-wide by construction, so the classifier's hardest discrimination
+is never tested.} The statement ``the three signatures may collapse into two'' is too soft. In
+\emph{this} simulator they cannot collapse: a blocked filter is plant-wide by construction, so it
+starves all six rooms and a stuck damper never does, and the common-mode count separates them
+trivially. The ambiguity that would really arise in a building (a partial obstruction in one duct
+branch, which reads as both a partly stuck damper and a partly blocked filter) \textbf{is not in
+the fault model at all}. The enumeration cannot express it. So a clean confusion matrix from the
+classifier would be weak evidence rather than strong, and reporting one without this paragraph
+would be misleading. The risk register forbade inventing a fourth \emph{signal} to rescue a
+three-way taxonomy; it never forbade a fourth \emph{fault}, and adding the ambiguous one is what
+would have made the classifier's evaluation worth reading.
+
+\textbf{And worse than untested: the \texttt{BLOCKED\_FILTER} branch of the classifier is
+unreachable with this physics.} This is the finding I least expected and the one I would lead with
+in the oral. A unit test pins it deliberately: it injects a blocked filter and asserts the
+classification is \texttt{UNCLASSIFIED}, with a message saying that if it ever starts classifying,
+the test's finding is out of date. Two structural reasons, and neither is a bug to be patched:
+
+\begin{itemize}
+\tightlist
+\item \textbf{The split only redistributes a fixed total.} $Q_i = Q_\text{fan}\,a_i/\sum a_j$ means
+  no damper command can move all six residuals the same way; a blockage shrinks $Q_\text{fan}$, but
+  the observer judges \emph{step responses to commands}, and no command it watches produces the
+  plant-wide common mode the first branch of the tree requires.
+\item \textbf{The generation estimate absorbs the blockage exactly.} From Section \ref{sec:7.2},
+  $G_\text{est} = Q\,(C_\text{measured} - C_\text{out})$ is learned from quasi-steady state. With a
+  blockage, the true flow is low by $(1-\beta)$ and the believed flow used in the prediction is high
+  by the same factor, so $G_\text{est}$ comes out high by precisely $1/(1-\beta)$, and the two
+  errors cancel in the predicted steady state. Only the \emph{time constant} differs, and the
+  residual the CUSUM sees never develops the bias it needs. The observer's defence against not
+  knowing occupancy is, in other words, also a defence against noticing a blocked filter.
+\end{itemize}
+
+What saves the outcome from being useless is that the classifier reports its evidence even when it
+declines to name a cause, so the work order still states the measured plant power excess and that the
+residual is not common mode: a technician is sent to the air handler with the right number, by a
+system that admits it cannot prove which fault it is. That is the correct behaviour for an
+unclassifiable case and it is not the same thing as a working three-way classifier. \textbf{The
+honest headline is that of the mechanisms this project set out to name, exactly one is classified:
+\texttt{STUCK\_DAMPER}.} \texttt{BLOCKED\_FILTER} can be pointed at but never confirmed, for the
+structural reason above. And \texttt{SENSOR\_DRIFT}, which this paragraph used to call classified
+``once a night of overnight-floor history exists'', is \textbf{never emitted at all}, in 0 of 76
+runs from a drift ramp and 0 of 76 from a step offset (§\ref{sec:7.3}, §\ref{sec:11.5}). Its leaf wants an informative
+overnight floor and a matched step response in the same instant, and the two injectable sensor
+mechanisms supply one each and never both, because the classification is computed at the confirmation
+while one of its inputs needs a day of the fault.
+
+\subsection{The air handler's rating was corrected on measurement (\texorpdfstring{\S\ref{sec:13.3}}{13.3} in full)}\label{sec:I.2}
+
+Run that plant at the normal 0.7 and it delivers 294 l/s against a 411.4 l/s design total, 71 \% of
+design flow, and the consequence was not subtle: with \textbf{nothing broken} no room could be held
+below 1000 ppm at design occupancy and the monitor confirmed a fault in all six, because a uniformly
+starved building looks exactly like a faulty one. Sizing instead from $\Sigma$ design $\div\ 0.7$
+separates the two jobs the rating was doing at once: the plant covers its design condition at the
+speed it actually runs, and the margin to $s=1$ is reserved for compensation. The fix is not free,
+and this is the honest cost: \textbf{margin masks faults}. At the corrected rating a filter blocking
+35 \% no longer starves the rooms enough for the monitor to confirm it, where at the undersized
+rating it did. Detection sensitivity was being bought with occupant comfort, which is the wrong
+currency, so the trade is made deliberately in comfort's favour and its cost is stated here rather
+than hidden. The correction is now measured rather than argued: at the corrected rating the
+no-fault arm of T-26 holds every occupied minute at or below 1000 ppm at design occupancy, on all
+five seeds, in every regime (§\ref{sec:11.2}). That is the figure the earlier sizing scored 0.000 on.
+
+
+\subsection{The CUSUM margin, and why $h$ was never the knob (\texorpdfstring{\S\ref{sec:13.4}}{13.4} in full)}\label{sec:I.3}
+
+
+The worst healthy seed peaked at 149.1 ppm against $h$ = 150 ppm at $\sigma$ = 30 ppm, over three
+hours in one room: a \textbf{0.9 ppm margin}, with the next seed at 91.6 ppm, so it is a tail draw
+and not a design property. R-3 asks for at most one false alarm per simulated week \emph{across six
+rooms}: the same statistic over far more samples, six times over. The mitigation is persistence
+rather than a higher limit: requiring the statistic to hold above $h$ for two consecutive cycles
+removes a tail draw, which the next sample erases, while a stuck damper clears $h$ every cycle.
+Raising $h$ instead trades R-3 against R-1, and the sweep in §\ref{sec:11.1} prices that trade: 8σ costs about
+a minute of delay, and 4σ already gave one false alarm in twenty short runs. Siegmund's
+ARL$_0 \approx 1.1\times10^{5}$ samples $\approx$ 79 days is analytic, on i.i.d. noise which the
+production residual is not. And the measurement contradicts it. Over 20 fault-free simulated weeks
+of all six rooms the monitor raises \textbf{0.55 confirmed cases per week against R-3's limit of
+one}, with \textbf{16 of 20 weeks clean} and a worst week of 6, against 1.30 per week and 9 clean
+weeks before ADR-0010, while on the same tuning R-1's stepped p95 is 6 min against a 15 min budget
+(§\ref{sec:11.2}). So the trade this section prices came out on R-3's side of the line, but it was not the
+binding trade, and that is the correction this section needs. \textbf{$h$ was never the knob.}
+ADR-0010 attributed the failure, and the defect was in the \emph{reference} the limit is applied to
+rather than in the limit: both plausibility guards were being corrected 30 \% of the way onto every
+reading, so each CUSUM arm was accumulating a filter error instead of a residual, which is what put
+the statistic into the very i.i.d. regime the analytic run length assumes and is why the analytic
+figure was contradicted so badly. Correcting the lower arm's half of it halved the rate with
+$k$ = 30 ppm and $h$ = 150 ppm \emph{untouched}. The response taken is therefore unchanged and
+better supported than when it was taken: $k$ and $h$ stay where the spike put them rather than
+being retuned until R-3 passes, because retuning a limit on the experiment that failed it is the
+same methodological error §\ref{sec:13.10} already names, and the measurement now says the limit was not the
+defect. What R-3 still fails on is the worst week, which is seed 2 at six confirmations, all on the
+upper arm; the upper arm's half of the same defect is measured, meets R-3 outright, and was
+declined because it costs three other requirements (§\ref{sec:11.2}, ADR-0010).
+
+\subsection{R-7 at design occupancy, and the two bounds on that finding (\texorpdfstring{\S\ref{sec:13.5}}{13.5} in full)}\label{sec:I.4}
+
+Until this revision R-7 was reported as met, full stop, on 270 observed rooms. It was met on the
+occupancy regime it had been run in. Running the same experiment with every room at its design head
+count fails \textbf{231 of 270}, and the shape of the failure is the result.
+
+The two failing clauses are \textbf{disjoint}: 215 observed rooms were themselves \emph{accused of a
+fault they did not have}, and 16 more sat outside the 5 \% airflow band at a worst deviation of
+0.058919: 215 plus 16 is the 231. They attribute in opposite directions, and the supervisor-dead
+pass is what separates them. The accusations run 85 of 90 rooms with the supervisor \emph{dead}
+against 130 of 180 with it live, so they belong to the regime and the monitor rather than to the
+response to the fault: compensation slightly \emph{suppresses} them. The airflow breaches run 0 of
+90 dead against 16 of 180 live, so that half is the compensation's own cost and nothing else's.
+
+\textbf{So the larger half of R-7's design-occupancy failure is R-3's false-alarm rate, measured by a
+different experiment, in a regime R-3's own replay never visits.} That is the second time this report
+has had to say it: §\ref{sec:11.2} records the same pattern inside R-2, where two of five design-occupancy
+seeds fail because every room is latched by false alarms and the trim lever is gone. \textbf{R-3 is
+not one failing requirement among four; it is the one whose failure the other three inherit}, and
+stating it that way is worth more than three independently reported shortfalls. ADR-0009 predicted
+exactly this collision and noted that no experiment asserted R-7 in that regime. One does now.
+
+Two bounds on the finding. The first is that \texttt{CompensationPlan.worstHealthyFlowDeviation()}
+\textbf{cannot falsify this requirement} and should stop being quoted beside the figure that can: it
+reaches 0.0500 and no further in any regime, because the solver caps the fan at the speed that makes
+the figure exactly the tolerance and then reports that cap. The second is that the 5 \% bound's
+\emph{reference plant} is ambiguous: the solver bounds its claim over each latched room's
+latch-time opening, the independent recomputation over its pre-latch one, and the two coincide until
+a second room latches inside one episode, which the drawn weekday never does and design occupancy
+routinely does. Both are defensible readings of ``before the compensation'' and ADR-0008 never says
+which. That is an ADR-level question, not a code change.
+
+\subsection{The third diagnostic signal is blind after a confirmation (\texorpdfstring{\S\ref{sec:13.6}}{13.6} in full)}\label{sec:I.5}
+
+
+§\ref{sec:7.3} records that the stuck-damper leaf fires on two signals rather than three, because a probe can
+only be requested once a case is latched and no step has been judged at classification time. The
+obvious repair is to reorder: latch as usual, withhold the diagnosis, ask for the probe immediately,
+and name the fault when the step lands. \textbf{It was built, measured over 176 paired runs on
+identical seeds, and not kept.} Detection moves in 0 of 88 pairs and the fault is named on a
+genuinely judged step in 28 of the 39 runs that defer, against none before. And the settled
+classification is identical in all 88 pairs, because the judged step reads \texttt{MISSING} for a
+stuck damper, a blocked filter, nine rooms whose dampers are in perfect health, and the run with
+nothing injected.
+
+The cause is a located defect older than the ordering, and it is the useful part.
+\texttt{ZoneObserver.\allowbreak recordStepAmplitude} measures the amplitude's \emph{measured} leg against
+\texttt{predictedAtStep} while the predicted leg is also against \texttt{predictedAtStep}, so the
+measured leg carries the standing residual as a constant offset. And the anchor-gain pull that
+would make that baseline legitimate is switched off while a case is open, so at the confirmation the
+prediction is stale by exactly the residual that confirmed it. \texttt{ZoneObserver.measuredAtStep}
+is assigned for this purpose and never read. On a 600 ppm offset with a healthy damper that answers
+its probe by dropping 300 ppm, the amplitude ratio runs from $-7.0$ to $-0.8$.
+
+\textbf{And correcting that baseline makes the reorder worse, not better}, which is the finding worth
+defending. Measured as an unlanded counterfactual, the corrected signal takes T-15's diagonal from
+18/44 to 15/44: it reads \texttt{MATCHED} on 3 of 8 genuinely stuck dampers and \texttt{MISSING} on 5
+of 11 healthy ones, because by the time a probe can be commanded the supervisor has degraded the
+zone, raised the fan and trimmed the other five, so the room's answer is mostly the compensation's. The 18/44 baseline reproduces on the current code; the 15/44 was measured on a one-line patch that was then reverted, so it is the one figure in this report that cannot be re-derived from the repository as it stands.
+This is the masking the latching argument in §\ref{sec:13.8} already rests on, arriving one level down, in the
+diagnosis rather than in the clearing policy. \textbf{A three-signal stuck-damper diagnosis therefore
+needs a step judged \emph{before} a case opens} (the inner loop's own trims, read against a
+baseline that survives them) rather than a probe requested after the response to the fault has
+begun. That is design work, and it is the one concrete thing this report would hand to a successor.
+
+\subsection{Scope, and the debts taken knowingly (\texorpdfstring{\S\ref{sec:13.9}}{13.9} in full)}\label{sec:I.6}
+
+\textbf{Legitimate scope.} Six rooms on one floor behind one air handler is not a building, but the
+shared fan makes R-7 non-trivial: keeping five rooms unchanged while compensating the sixth is
+something the supervisor must actively do. Simulated time through \texttt{ClockPort} is legitimate
+too, but the reproducibility it buys has to be stated precisely, because the obvious phrasing is
+false of half the system. \textbf{In the offline harness the replay is reproducible bit for bit}:
+the clock is a \texttt{SimulatedClock}, the bus is a list and the iteration order is fixed, so the
+draws are identical run to run, which is exactly what R-3's false-alarm count needs.
+\textbf{In the containerised demo profile it is not}, and that is measured rather than suspected:
+four runs on identical \texttt{SEED}, \texttt{TIME\_SCALE} and \texttt{START\_AT} confirmed A115 at
+simulated 10:16, 10:17, 10:19 and 10:23, a spread of seven simulated minutes. The cause is that
+the sensor model draws once per Euler sub-step and the sub-step count follows \emph{real} elapsed
+time, so host scheduling decides how many draws a simulated minute contains. The offline number is
+the one every requirement is argued from; the demo profile is for showing the system work, not for
+measuring it. What simulated time does \emph{not} exercise either way is anything that
+appears only over real duration: scheduler jitter, clock drift, broker backpressure, memory growth.
+R-6's cycle time is the only result in the plan that touches timing at all.
+
+\textbf{Debts.} Skipping a DTO layer is justified by lock-step single-author deployment, but it makes
+a domain refactor a wire-format break and is wrong the moment any consumer deploys independently.
+Having no message replay is similarly contingent: R-3's evidence comes from a seeded harness rather
+than from the broker, so the evaluation never needs replay, but in a real deployment a monitor
+restart loses the residual history it was accumulating, and R-5 then rests entirely on the journal.
+Three smaller debts, all three of which have since been \textbf{corrected} and are kept here because
+what they were is worth more than that they are gone. The first: \texttt{Topology} could express a
+synthetic zone set larger than six but nothing in any container wired it, so the capability existed
+and R-6 could not be run from the deployed system. \texttt{ZONE\_COUNT} is now an environment
+variable all \factAuthoredServices{} project-authored containers read, and the stack was brought up and watched at 12
+and at 58 zones, 58 being a hard ceiling that belongs to BuildSim rather than to the monitor,
+since it refuses to host equipment in a room its floorplan does not have. \textbf{R-6's breaking
+point therefore remains a harness measurement}, and the two ceilings are three orders of magnitude
+apart. The second: ADR-0005 and ADR-0006 argued in the superseded access-control vocabulary (doors,
+badges, requirement IDs that no longer exist) against requirements the project had replaced. Both
+were retargeted, and then checked line by line against the source tree, which found that the
+retargeted prose made three further wrong statements about the code: an interface inventory listing
+five where the tree has fifteen, a claim that five components carry the full
+\texttt{boundary}/\texttt{control}/\texttt{entity} structure, and device-process line counts given as
+``around a hundred each'' against 297 and 237. \textbf{Correcting a document can introduce fresh
+errors of its own}, and only a pass against the tree finds them. The third, that the monitor's
+parameter record documented its plausibility ceiling as 1.0 while the code used 1.25, sat in the one
+parameter that decides how desensitised the detector is, which is the worst place to have two
+different numbers written down: \texttt{MonitorParameters} now reads 1.25 in both its javadoc and its
+defaults, and the same pass removed two further false claims from that record (ADR-0010).
+
+\textbf{A fourth of the same shape was found and closed in this pass, and it was the most expensive
+of them.} The probe step had \emph{two} numbers (\texttt{MonitorParameters.probeStepIncrease} at
+0.20 and \texttt{SupervisionService.PROBE\_STEP} at 0.25), and the consequence was worse than
+duplication, because the monitor \emph{asks} in the evidence an operator reads while the supervisor
+\emph{acts}. The system published ``step to 0.35'' on \texttt{faults/\{zone\}}, journalled that, and
+commanded 0.40: \textbf{it was telling the operator one thing and the building another}. There is one
+owner now, in \texttt{shared}, because the amplitude has to mean the same thing to the component that
+requests it and the one that commands it. Why the divergence survived is worth keeping: the request
+is prose inside \texttt{FaultStateChanged.evidence}, a \texttt{List<String>}, so the supervisor could
+not read the amplitude off the wire without a schema change four components decode. The change was
+taken on the operator-facing argument and \textbf{not} on a measurement (no requirement verdict
+moved), and it had one measured side effect worth more than the fix: a 0.05 change in one amplitude
+moved \textbf{ten of T-34b's design-occupancy rows from pass to FAIL}, by causing one extra room to be
+falsely accused on one seed. That is R-3's false-alarm rate again, and it says the design-occupancy
+regime is not merely failing but \emph{unstable}.
+
+\textbf{One debt was addressed, and what it cost to try is more interesting than the debt.}
+T-15 found that \texttt{ZoneMonitor.stepShapeUnchanged()} collapsed ``no evidence'' into ``evidence
+of a missing response'': it returned \texttt{false} when the step-amplitude ratio was \texttt{NaN},
+and \texttt{NaN} is what the observer reports when \emph{no step has ever been judged}. The
+classifier's stuck-damper leaf read that as the commanded step having produced no matching
+response, so \texttt{STUCK\_DAMPER} could be emitted for a room the monitor never asked to move:
+9 of 57 drift runs confirm by exactly that route.
+
+The signal is now a three-valued type, so the conflation cannot be written by accident again. The
+\emph{strict} fix, requiring positive evidence of an unanswered step, was then tried, and
+\textbf{it emptied the leaf}: the one cell on T-15's diagonal went to \texttt{UNCLASSIFIED} and the
+tree classified nothing at all. The cause is an ordering problem, not a logic one. A probe is
+requested through the evidence on \texttt{FaultStateChanged}, so a case must be open before a step
+is commanded, and \textbf{the step-amplitude signal therefore arrives after the decision it exists
+to inform}. The \texttt{NaN} was not an incidental bug; it was the only thing making that leaf
+reachable, and the taxonomy has been quietly running on two signals rather than three for its whole
+life.
+
+What is in the repository is the honest middle: the leaf still fires on localisation and flat fan
+power, and every diagnosis reached without a judged step now carries an explicit entry saying it
+rests on two signals, that the room has not been asked to move and so has not failed to answer, and
+that a probe has been requested to settle it. Behaviour is unchanged (T-15's, T-24's and T-25's
+result files reproduce byte for byte, so no number in this report moved), and the weakness is now
+in the work order an operator reads instead of inside a boolean. \textbf{The real fix is to command
+a probe step before classifying rather than after}, which reorders the diagnosis pipeline and would
+trade detection delay for diagnostic confidence. That is a design change with its own experiment
+attached, and it is the first thing this system should do next.

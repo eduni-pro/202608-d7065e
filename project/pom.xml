@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>se.ltu.d7065e</groupId>
+  <artifactId>ventilation-fault-detection</artifactId>
+  <version>1.0.0-SNAPSHOT</version>
+  <packaging>pom</packaging>
+  <name>Ventilation fault detection, diagnosis and graceful degradation</name>
+
+  <modules>
+    <module>shared</module>
+    <module>physics-simulator</module>
+    <module>co2-sensor</module>
+    <module>damper-actuator</module>
+    <module>dcv-controller</module>
+    <module>fault-monitor</module>
+    <module>supervisor</module>
+    <module>dashboard</module>
+    <module>evaluation</module>
+  </modules>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.compiler.release>25</maven.compiler.release>
+    <quarkus.platform.version>3.39.5</quarkus.platform.version>
+    <jakarta.json.version>2.1.3</jakarta.json.version>
+    <parsson.version>1.1.9</parsson.version>
+    <paho.version>1.2.5</paho.version>
+    <postgresql.version>42.7.11</postgresql.version>
+    <junit.version>6.1.3</junit.version>
+    <surefire.version>3.5.2</surefire.version>
+    <jar.plugin.version>3.4.2</jar.plugin.version>
+    <dependency.plugin.version>3.8.1</dependency.plugin.version>
+    <!-- Overridden by each plain-Java module; the Quarkus services do not use it. -->
+    <main.class>unset</main.class>
+  </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>io.quarkus.platform</groupId>
+        <artifactId>quarkus-bom</artifactId>
+        <version>${quarkus.platform.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.junit</groupId>
+        <artifactId>junit-bom</artifactId>
+        <version>${junit.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>se.ltu.d7065e</groupId>
+        <artifactId>shared</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>jakarta.json</groupId>
+        <artifactId>jakarta.json-api</artifactId>
+        <version>${jakarta.json.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.eclipse.parsson</groupId>
+        <artifactId>parsson</artifactId>
+        <version>${parsson.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.eclipse.paho</groupId>
+        <artifactId>org.eclipse.paho.client.mqttv3</artifactId>
+        <version>${paho.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.postgresql</groupId>
+        <artifactId>postgresql</artifactId>
+        <version>${postgresql.version}</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-surefire-plugin</artifactId>
+          <version>${surefire.version}</version>
+        </plugin>
+        <!-- Plain-Java containers ship as a jar plus a lib/ directory, which keeps the
+             image build to a plain copy and needs no shading. -->
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-jar-plugin</artifactId>
+          <version>${jar.plugin.version}</version>
+          <configuration>
+            <archive>
+              <manifest>
+                <addClasspath>true</addClasspath>
+                <classpathPrefix>lib/</classpathPrefix>
+                <mainClass>${main.class}</mainClass>
+              </manifest>
+            </archive>
+          </configuration>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-dependency-plugin</artifactId>
+          <version>${dependency.plugin.version}</version>
+          <executions>
+            <execution>
+              <id>copy-dependencies</id>
+              <phase>prepare-package</phase>
+              <goals><goal>copy-dependencies</goal></goals>
+              <configuration>
+                <outputDirectory>${project.build.directory}/lib</outputDirectory>
+                <includeScope>runtime</includeScope>
+              </configuration>
+            </execution>
+          </executions>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+  </build>
+</project>

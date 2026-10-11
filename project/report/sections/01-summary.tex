@@ -1,0 +1,114 @@
+\section{Summary}\label{sec:1}
+
+This system runs demand-controlled ventilation over six rooms of an office floor and, on top of
+it, a second loop that decides whether that ventilation is still \emph{working}. The guiding
+principle is one sentence and it is the thread through every decision that follows: \textbf{a
+stuck damper and a full room look identical to a CO₂ controller, and what tells them apart is a
+model of what the last command should have achieved.} A controller that sees only concentration
+cannot distinguish a room that will not ventilate from a room with more people in it; both read
+high. Predicting the response each command owes, and watching the gap between that prediction and
+the measurement, turns the fault from an invisible condition into an observable one, which makes
+the autonomous part an inference problem rather than a threshold, and makes fault injection and
+degraded operation the use case itself rather than an experiment bolted on at the end.
+
+The system is therefore \textbf{two nested loops}, and the outer one is the contribution.
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 4\tabcolsep) * \real{0.26}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 4\tabcolsep) * \real{0.10}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 4\tabcolsep) * \real{0.64}}@{}}
+\toprule
+\textbf{Loop} & \textbf{Period} & \textbf{Closes because} \\
+\midrule
+\endhead
+Inner, control (\texttt{dcv-controller}) & ≈ 1 s & A damper command changes airflow, which
+changes CO₂, which the controller reads next \\
+Outer, supervision (\texttt{fault-monitor} + \texttt{supervisor}) & ≈ 60 s & A confirmed fault
+changes the control strategy, which changes the commands, which changes the residual the monitor
+reads next \\
+\bottomrule
+\end{longtable}
+
+The inner loop is deliberately a plain rule: CO₂ in, damper position out, with hysteresis and a
+freshness check. That is not an omission but the point. Demand-controlled ventilation is a solved
+problem, and making the inner rule cleverer would have bought nothing the course grades; the
+interesting and unsolved question is what happens when the actuator the clever rule depends on
+has quietly stopped working. Keeping the inner loop simple also keeps it \emph{verifiable}, which
+matters because the outer loop judges it: an observer that has to model a sophisticated
+controller inherits that controller's complexity as model error.
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 2\tabcolsep) * \real{0.26}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 2\tabcolsep) * \real{0.74}}@{}}
+\toprule
+\textbf{Field} & \textbf{Value} \\
+\midrule
+\endhead
+\textbf{Project title} & Ventilation Fault Detection, Diagnosis and Graceful Degradation \\
+\textbf{Team members} & Wassim Akachi (project group 5, solo) \\
+\textbf{Use case} & Demand-controlled ventilation that detects, diagnoses and survives faults in
+its own equipment \\
+\textbf{Repository} & \url{https://github.com/eduni-pro/202608-d7065e}, subfolder \texttt{project/} \\
+\textbf{Version / date} & v1.1, submission, 2026-10-11 \\
+\bottomrule
+\end{longtable}
+
+This is a solo project, so no contribution statement is included: the course requires one only
+where a pair submits a single system, and every decision, measurement and line of code recorded
+here is my own.
+
+\textbf{Where it landed, before the detail.} Two of the seven requirements are met outright. Three
+more pass on the arm their acceptance criterion names and fail on the harder arm beside it, and
+they are reported as \emph{two} numbers rather than one, because a single verdict would have to
+pick which regime to be silent about. \textbf{R-3 is the one that fails everywhere (0.55
+confirmed false alarms per fault-free simulated week against a budget of one) and R-1's, R-2's
+and R-7's harder arms all have that same false-alarm rate somewhere in their causes.} One defect,
+surfacing four times, is a more useful thing to know about this system than four defects would be,
+and §\ref{sec:11} reports it that way rather than softening it. The regime that separates the arms is not
+the same in each case and is named with each result: for R-2 and R-7 it is \emph{occupancy} (the
+drawn weekday passes, design occupancy does not), while for R-1 it is the \emph{protocol}, which
+detects 20 of 20 at a p95 of 6 min when the damper is stepped deliberately and 15 of 20 at 257 min
+when the fault must be found in the closed loop that is also compensating for it.
+
+\subsection{Changes since the proposal}\label{sec:1.1}
+
+Three things changed, and each was forced by a decision I had to make rather than by a change of
+mind. The accepted proposal (2026-09-18) carried one examiner condition, \emph{``make sure to
+include several rooms''}, and answering it honestly is what drove all three.
+
+\textbf{1. The coupling topology: six independent rooms became one shared air handler with a
+damper per room.} ``Several rooms'' can be satisfied by replication, six copies of the single-room
+spike with nothing one room can do to another, and the implementation plan's risk register names
+exactly that as the failure to avoid. ADR-0008 therefore weighed three couplings and chose
+\textbf{option B}: one air-handling unit \texttt{AHU-A120}, one damper per room, and a
+proportional flow split, sized 43 \% above the sum of the six rooms' design flows, but only
+0.4 \% above it at the normal fan speed of 0.7, so that \emph{the only way one room gets more air
+is if another damper closes} and the headroom is a compensation budget rather than normal slack. Rejected: option A
+(independent rooms, a fan each), which makes R-7 hold by construction and its experiment measure
+nothing; and option C (option B plus inter-room air exchange), which is the proposal's literal
+wording but whose exchange coefficient, the one parameter nothing can measure, would be what
+decides whether R-2 passes.
+
+\textbf{2. ``Over-ventilate the neighbour'' became ``over-drive the shared handler and trim the
+neighbours' dampers''.} The proposal said the supervisor would compensate by over-ventilating the
+faulted room's neighbour, which presumes air moves between rooms. Under option B it does not:
+rooms are coupled through the \emph{duct}, not through the wall. The mechanism that replaces it is
+better, not merely different, and Section \ref{sec:7.4} derives it: one common trim on the healthy dampers
+plus one raise of the shared fan speed holds every healthy room's airflow exactly where it was
+while multiplying the faulted room's flow by the reciprocal of the trim. The cost is a stated
+bound (a damper stuck fully shut has no air path and cannot be reached at all), and that bound is
+reported with R-2 rather than hidden.
+
+\textbf{3. Fan power moved from a per-room signal to a plant signal, and that is what makes
+discrimination possible at all.} In the proposal's sketch each room had its own fan, so fan power
+was a local quantity and a blocked filter was a local anomaly. With one shared unit, fan power
+belongs to the plant. That single relocation is what gives the monitor a \emph{cross-room} signal:
+a blocked filter starves all six rooms at once and raises power per unit of flow, while a stuck
+damper moves one room's residual and leaves plant power flat. Without it, separating those two
+faults would have needed a fourth invented signal, which the risk register explicitly forbade.
+
+One thing did \emph{not} change and deserves saying so: the detection method. The proposal
+proposed a predicted step response, a residual and a CUSUM (one-sided then, two-sided now that
+§\ref{sec:7.3}'s guarded lower arm has been added), and the week-37 spike
+(Section \ref{sec:11.1}) found the separation so large that the design question moved from ``can this be
+detected'' to ``how few false alarms can it be detected with''.\label{sec:1end}

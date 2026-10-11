@@ -1,0 +1,47 @@
+# P6, ClockPort — the seam a reader would not guess from any other figure in the report.
+#
+# TIER 1, and it is worth its own figure for a reason none of the others shares. Every other
+# seam exists because the architecture says a boundary crossing gets a port. This one exists
+# because the EVALUATION could not otherwise be done: nothing in control may call Instant.now()
+# or Thread.sleep, so the harness drives thousands of simulated hours through the very same
+# control classes the containers run, and the only difference between a measured experiment and
+# a deployed container is which ClockPort the composition root was handed.
+#
+# Neither container.d2 nor deployment.d2 shows it, because it never crosses a process boundary.
+#
+# The ScaledClock profile must be identical in all seven processes or each opens a timeline of
+# its own — a property of the deployment and not of substituting the port, which is why P6 stays
+# Tier 1 while the same fact becomes a real condition at K1. Argued in seams.md § P6.
+#
+# VERIFIED AGAINST: ClockPort.java:11 with :6-10; SystemClock.java:8; SimulatedClock.java:12
+# with :7-11; ScaledClock.java:55, :20-37, :121-137, :126-133, :174-188; the seven callers of
+# fromEnvironment; SystemHarness.java:82; ScalingExperiment.java:143; the x-timeline anchor in
+# docker-compose.yml and the 60x override in docker-compose.demo.yml.
+direction: down
+
+classes: {
+  contract: { shape: hexagon; style.stroke-width: 2 }
+  port: { shape: parallelogram; style.stroke-width: 2 }
+  t1: { style.stroke: "#1e8449"; style.fill: "#eafaf1" }
+  t2: { style.stroke: "#b9770e"; style.fill: "#fdf3e3" }
+  t3: { style.stroke: "#c0392b"; style.fill: "#fdedec"; style.stroke-dash: 4 }
+  box: { style.stroke-width: 2 }
+  doc: { shape: document; style.fill: transparent }
+}
+
+core: "every control class\nno Instant.now(), no Thread.sleep" { class: box }
+p6: "P6 · ClockPort" { class: [port; t1] }
+api: "now() · waitFor(Duration)" { class: box }
+sys: "SystemClock\nthe wall clock, the containers" { class: box }
+scaled: "ScaledClock\nTIME_SCALE x faster, one REAL_EPOCH" { class: box }
+simu: "SimulatedClock\nadvances instantly · the harness" { class: box }
+why: "R-3's seven days -> milliseconds\nthe same control classes" { class: box }
+md: "the profile caveat · evidence\nseams.md § P6" { class: doc }
+
+core -> p6: "constructor injection"
+p6 -> api
+api -> sys
+api -> scaled
+api -> simu
+simu -> why
+p6 -> md

@@ -1,0 +1,59 @@
+# T-31 — the monitor's state machine, one instance per zone (the six rooms of corridor A120).
+# Authoritative sources: MonitorState.isLatched() and MonitorState.canGoBlind() in
+# shared/.../diagnosis/entity/MonitorState.java, ZoneMonitor.suspectIfElevated() and
+# ZoneMonitor.confirmOrClear(), FaultCase's single explicit exit, plan §3 "Monitor states",
+# R-4 and T-18. k = 30 ppm and h = 150 ppm are ADR-0008 §Parameters; the suspicion threshold
+# is MonitorParameters.suspectThresholdPpm() = 0.6 h and the persistence count is
+# confirmPersistenceCycles = 2.
+direction: down
+
+mon: "fault-monitor  [Container: Quarkus] — one state machine per zone" {
+  style.stroke-dash: 4
+  style.fill: transparent
+
+  start: "" { shape: circle; width: 30; height: 30 }
+
+  WARMUP: "WARMUP\nNo step-response prediction yet.\nPublishes residuals, no diagnosis"
+  HEALTHY: "HEALTHY\nCUSUM S below the suspicion\nthreshold 0.6 h = 90 ppm"
+  SUSPECT: "SUSPECT\nCase open, not yet classified.\nThe observer stops correcting\ntowards the measurement"
+  SERVICED: "SERVICED\nEquipment repaired, case closed"
+
+  BLIND: "BLIND — not a fault\nReports unavailable, issues no diagnosis (R-4).\nNo edge from here into SUSPECT or CONFIRMED:\nmissing data is not evidence of a fault" {
+    style.stroke-dash: 3
+    style.fill: transparent
+  }
+
+  latched: "latched — the only way out is service" {
+    style.stroke-dash: 4
+    style.fill: transparent
+
+    CONFIRMED: "CONFIRMED\nSTUCK_DAMPER / BLOCKED_FILTER /\nSENSOR_DRIFT / UNCLASSIFIED.\nfaults/{zone} published"
+    COMPENSATING: "COMPENSATING\nSupervisor has degraded the zone, trimmed\nthe five healthy dampers, raised the fan"
+    why: "Neither state has an edge back to HEALTHY.\nCompensation raises the shared fan and trims the\nfive healthy dampers, so the split pushes air into\nthe faulted room and the residual shrinks: the\nresponse destroys the signal that found the fault.\nA monitor that believed the shrinking residual\nwould clear a damper still frozen at 0.15.\nHence the latch, and the per-room damper\nprobe that re-confirms instead (T-18)." {
+      shape: page
+      style.stroke-dash: 2
+    }
+
+    CONFIRMED -> COMPENSATING: "supervisor compensates\n(strategy/{zone}, commands/{ahu}/fan-speed)"
+  }
+
+  start -> WARMUP
+  WARMUP -> HEALTHY: "observer has a prediction for\nthe zone's last command"
+  HEALTHY -> SUSPECT: "S = max(0, S + r - k), k = 30 ppm, rises above\nthe suspicion threshold 0.6 h = 90 ppm — below h,\nso suspicion is cheap and reversible"
+  SUSPECT -> HEALTHY: "S has decayed back to zero for three\nconsecutive cycles — the one recovery edge,\nand the one CONFIRMED deliberately lacks"
+  SUSPECT -> latched.CONFIRMED: "S stays above h = 150 ppm (5 sigma) for TWO\nconsecutive cycles, not one: the margin R-3 needs\ncomes from persistence, and one extra cycle costs\none minute of R-1's fifteen. Then the classifier\ndecides from fan power, common mode and\novernight decay"
+  latched.CONFIRMED -> SERVICED: "repaired before compensation, or stuck shut\n(R-2's bound): work order only"
+  latched.COMPENSATING -> SERVICED: "damper repaired — explicit\nclear, FaultCase.serviced()"
+  SERVICED -> WARMUP: "case closed; re-identify the step\nresponse before judging again"
+
+  WARMUP -> BLIND: "readings stale beyond\nthree intervals (R-4)"
+  HEALTHY -> BLIND: "readings stale beyond\nthree intervals (R-4)"
+  SUSPECT -> BLIND: "stale beyond three intervals (R-4);\nthe open case waits, unconfirmed"
+  BLIND -> WARMUP: "readings resume — always back to\nWARMUP, never into SUSPECT or CONFIRMED"
+
+  latched.COMPENSATING -> HEALTHY: "no such edge: a shrinking residual is not a repair" {
+    style.stroke: "#c0392b"
+    style.stroke-dash: 4
+    target-arrowhead.shape: cf-one
+  }
+}

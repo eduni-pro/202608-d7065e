@@ -1,0 +1,56 @@
+# C4 level 2 — containers (T-10). One box here, one service in docker-compose.yml; the seven
+# project-authored ones are also one folder apiece under project/. shared/ is a library and
+# evaluation/ is the offline harness, so neither is a container and neither appears here.
+# Element types are C4's: Person, Software System, Container. mosquitto and timescaledb are
+# containers of this system (third-party images, configured under deploy/); BuildSim is an
+# external software system, drawn as such rather than as a datastore.
+# Every edge points the way the call goes: from the component that initiates it to the one it
+# reaches. A read is drawn from the reader outward, not as a reply arrow back at it. That rule
+# now covers the Person as well: the two edges that used to point at the technician have been
+# turned around, because a technician reading the status page or the 3D view is the one who
+# initiates that read, and one rule for every edge beats a presentation-direction exception for
+# the human-facing ones. The BuildSim edge gained the [HTTP] bracket it had been missing, in the
+# same pass. The dashboard's reads and the serviced report share one edge, its label naming both
+# kinds of traffic, as several edges here already do.
+# Edge labels name the kind of traffic, not every topic: the complete publisher/subscriber
+# table is report §5.1, verified against Topics.java and the subscribe calls in MonitorRuntime,
+# FaultSubscription, DashboardRuntime, DamperControlJob and DamperActuatorMain. Where a label
+# says "all four command and reading topics" it means exactly that set and no more.
+direction: down
+bs: "BuildSim\n[Software System]\nBuilding state: rooms, equipment,\nsensor values, actuator state,\noccupancy, room layers, alerts,\n3D viewer"
+tech: "Facilities technician\n[Person]" { shape: person }
+sys: "Ventilation fault detection, diagnosis and graceful degradation  [Software System]" {
+  style.stroke-dash: 4
+  style.fill: transparent
+
+  sim: "physics-simulator\n[Container: Java 25]\nCO2 mass balance for six rooms,\nshared-AHU flow split, occupancy\nschedules, fault injection"
+  sensor: "co2-sensor\n[Container: Java 25]\nReads six CO2 values and AHU fan\npower from BuildSim; judges data\nquality; publishes"
+  act: "damper-actuator\n[Container: Java 25]\nValidates and applies damper and\nfan-speed commands to BuildSim.\nThe only writer of actuator state"
+  broker: "mosquitto\n[Container: eclipse-mosquitto 2]\nDecouples producers from consumers;\na dead publisher goes silent" { shape: queue }
+  ctrl: "dcv-controller\n[Container: Quarkus]\nInner loop ~1 s: damper position from\nCO2 with hysteresis and a freshness\ncheck. Deliberately a plain rule"
+  mon: "fault-monitor\n[Container: Quarkus]\nOuter loop ~60 s: observer, residual,\none-sided CUSUM, classifier, latching.\nRaises events only, never commands"
+  sup: "supervisor\n[Container: Quarkus]\nActs on a confirmed fault: degrades the\nroom, trims the healthy dampers, raises\nfan speed, issues the work order"
+  dash: "dashboard\n[Container: Quarkus]\nResidual, CUSUM and fault state per\nroom as BuildSim room layers, plus its\nown HTML page and JSON. No alerts"
+  tsdb: "timescaledb\n[Container: TimescaleDB pg16]\nHot store: readings, fan power,\ncommands, residuals, decisions,\nstrategies" { shape: cylinder }
+}
+sys.sim -> bs: "registers the equipment at boot;\nthen per tick reads damper and\nfan state and writes CO2, fan\npower and occupancy [REST]"
+sys.sensor -> bs: "polls six CO2 values\nand the fan power [REST]"
+sys.sensor -> sys.broker: "readings/{zone}/co2\nreadings/{ahu}/fan-power [MQTT]"
+sys.broker -> sys.ctrl: "readings, strategy/{zone} [MQTT]"
+sys.ctrl -> sys.broker: "commands/{zone}/damper [MQTT]"
+sys.broker -> sys.mon: "readings, fan power, and\nboth command topics [MQTT]"
+sys.mon -> sys.broker: "residuals/{zone}\nfaults/{zone} [MQTT]"
+sys.broker -> sys.sup: "faults/{zone}, plus readings and\ndamper commands — it has no\ndamper feedback and sizes the\nplan from measured air [MQTT]"
+sys.sup -> sys.broker: "strategy/{zone}, fan speed,\nprobe damper command [MQTT]"
+sys.broker -> sys.act: "commands/{zone}/damper\ncommands/{ahu}/fan-speed [MQTT]"
+sys.act -> bs: "set damper position\nand fan speed [REST]"
+sys.ctrl -> sys.tsdb: "append damper commands [SQL]"
+sys.mon -> sys.tsdb: "append readings, fan power,\nevery command it observes,\nresiduals, decisions [SQL]"
+sys.sup -> sys.tsdb: "append strategies, fan speed\nand the probe command [SQL]"
+sys.dash -> sys.tsdb: "replays one case on demand,\nacross five of the six tables [SQL]"
+sys.broker -> sys.dash: "readings, fan power, residuals,\nfaults, strategy, fan speed [MQTT]"
+sys.dash -> bs: "room layers [REST]"
+sys.sup -> bs: "raises the work order as an\nalert, and clears it when\nthe case is released [REST]"
+tech -> sys.dash: "HTML page, GET /api/state,\nGET /api/cases/{caseId}, and the POST\nthat reports the equipment serviced,\nthe only exit from a latched case [HTTP]"
+tech -> sys.sim: "injects, lists and clears a fault\nin the running plant [HTTP]"
+tech -> bs: "3D view with the faulted room\nhighlighted, and the work order [HTTP]"

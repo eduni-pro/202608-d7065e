@@ -1,0 +1,72 @@
+# C4 level 4 — code, the diagnosis chain inside fault-monitor's control layer.
+#
+# Drawn for this chain and for nothing else because this is the one path where the report's
+# claims are claims about *code* rather than about physics: that the monitor never commands,
+# that a latched case has exactly one exit, and that the statistic is driven by a different
+# residual from the one that is published. None of those is visible at level 3, where
+# ZoneMonitor is a single box.
+#
+# Deliberately partial, as C4 says a code diagram should be. Only the types an arrow lands on
+# appear, and only the members that carry one of those claims. MonitorParameters' 24 tunables,
+# OvernightFloor, AhuFlowModel, FaultSignals' twelve components and the value objects stay at
+# level 3 and in report §7.3; MonitorState's constants and transitions are the state machine of
+# report §8.3 and are not redrawn here.
+#
+# Signatures, field names, defaults and arrow directions are read from the source:
+# project/fault-monitor/src/main/java/se/ltu/d7065e/diagnosis/control/ and
+# project/shared/src/main/java/se/ltu/d7065e/diagnosis/entity/FaultCase.java.
+direction: down
+
+monitor: "FaultMonitor  [control]" {
+  shape: class
+  "- monitors": "Map<ZoneId, ZoneMonitor>, six"
+  "+ runCycle()": "two phases, in order"
+  "+ serviced(ZoneId)"
+}
+
+zone: "ZoneMonitor  [control] — one per room" {
+  shape: class
+  "- state": "MonitorState = WARMUP"
+  "- statistic / lowerStatistic": "the two arms"
+  "- lastResidualPpm": "the published residual"
+  "+ evaluate(Instant)": "phase 1: residual, arms, BLIND"
+  "+ decide(FaultSignals, Instant)": "phase 2: the state machine"
+  "+ serviced(Instant)": "nothing reaches this"
+}
+
+observer: "ZoneObserver  [control]" {
+  shape: class
+  "- generationEstimate": "learned, gain 0.3; no occupancy"
+  "+ advance(Instant): Prediction": "predicted, ceiling, floor"
+  "+ stepAmplitudeRatio(): double"
+}
+
+cusum: "Cusum  [control, record]" {
+  shape: class
+  kPpm / hPpm: "30 ppm / 150 ppm"
+  "+ next(S, r)": "max(0, S + r - k)"
+  "+ nextLower(S, r)": "max(0, S - r - k)"
+  "+ alarms(S)": "strictly above h"
+}
+
+classifier: "FaultClassifier  [control]" {
+  shape: class
+  "+ classify(FaultSignals): Diagnosis": "four lines, in order"
+  "signals in": "common-mode count, fan power ratio,\nstep amplitude, overnight floor"
+  "classifications out": "STUCK_DAMPER, BLOCKED_FILTER,\nSENSOR_DRIFT, UNCLASSIFIED, NONE"
+}
+
+faultcase: "FaultCase  [entity, record]" {
+  shape: class
+  "+ suspected / confirmed / compensating": "confirmed() throws on NONE"
+  "+ serviced(ObservedAt)": "the only exit from a latch"
+}
+
+monitor -> zone: "evaluate all six, count\nelevated(), then decide all six"
+zone -> observer: "advance(now)"
+observer -> zone: "predicted, ceiling, floor"
+zone -> cusum: "upper: measured - ceiling\nlower (GUARDED): measured - floor"
+cusum -> zone: "statistic, alarms()"
+zone -> classifier: "classify(signals), only\non confirmation"
+classifier -> faultcase: "classification + evidence"
+zone -> faultcase: "opens, latches, releases"

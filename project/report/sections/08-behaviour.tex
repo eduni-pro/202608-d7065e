@@ -1,0 +1,33 @@
+\section{Behaviour}\label{sec:8}
+
+\subsection{Key scenario (C4 dynamic diagram)}\label{sec:8.1}
+
+The dynamic view shows how the containers of Section \ref{sec:4.2} collaborate at runtime for the
+stuck-damper scenario, with numbered interactions. Steps 1–8 are the inner loop at about 1 s;
+steps 9–21 the outer loop at about 60 s. It exposes what the static diagrams cannot: that the
+monitor acts on a \emph{command and its aftermath}, not on a reading, and that every action in the
+second half of the figure comes from the supervisor.
+
+\begin{landscape}
+\begin{center}\includegraphics[height=0.92\textwidth,width=0.98\linewidth,keepaspectratio]{figures/dynamic.pdf}\end{center}
+\figcap{C4 Dynamic diagram, from \texttt{project/diagrams/dynamic.d2}: a damper frozen at 0.15 in
+A115, the meeting room. Steps 1--8 are the inner loop, 9--21 the outer. The inset explains why
+trimming the five healthy dampers reaches A115 at all.}
+\end{landscape}
+
+\subsection{The same scenario in time (sequence diagram)}\label{sec:8.2}
+
+The sequence view adds what the dynamic view leaves out: duration, and the three phases that follow
+confirmation. Its fourth group is the point of the project: after compensation the residual
+collapses to 20 ppm and the CUSUM to zero, and the case does \emph{not} clear. The figure is
+\textbf{Appendix \ref{sec:B.3}}; the latch it draws is the trade §\ref{sec:13.8} argues for.
+
+\subsection{Process lifecycle (state machine)}\label{sec:8.3}
+
+One instance per room. Every transition in this figure is code that had to be written, and two
+\emph{absent} transitions are the design: there is no edge from \texttt{BLIND} into an open case,
+and no edge from \texttt{COMPENSATING} back to \texttt{HEALTHY}.
+
+\begin{center}\includegraphics[height=0.70\textheight]{figures/state.pdf}\end{center}
+\figcap{The monitor's state machine, from \texttt{project/diagrams/state.d2}. The crossed-out edge
+is drawn deliberately: a shrinking residual is not a repair.}

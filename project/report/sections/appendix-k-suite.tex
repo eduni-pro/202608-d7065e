@@ -1,0 +1,129 @@
+\section{The test plan, the test suite and the evaluation harness, in full}\label{sec:K}
+
+\subsection{The test plan, with each test's expected result and its evidence}\label{sec:K.1}
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 8\tabcolsep) * \real{0.0683}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 8\tabcolsep) * \real{0.3219}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 8\tabcolsep) * \real{0.1366}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 8\tabcolsep) * \real{0.2146}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 8\tabcolsep) * \real{0.2536}}@{}}
+\toprule
+\textbf{ID} & \textbf{Test or experiment} & \textbf{Requirement} & \textbf{Expected result} &
+\textbf{Evidence, and whether it exists} \\
+\midrule
+\endhead
+T-24 & Detection delay swept against the CUSUM limit $h$, ≥ 20 runs per point & R-1 &
+Trade-off curve; p95 ≤ 15 min at the chosen $h$ & \textbf{Run}, 200 runs over six arms: stepped
+p95 6 min, 20/20; closed-loop p95 257 min, 15/20 (§\ref{sec:11.2}) \\
+T-25 & Model-based monitor against a plain residual threshold, identical seeds, 7-day fault-free
+replay & R-1, R-3 & Fewer false alarms at equal delay; ≤ 1 alarm per week & \textbf{Run}: at equal
+alarm volume the monitor detects 0.75 against the threshold's 0.15, at a median delay of 74 min
+against 312; R-3 fails at \textbf{0.55} confirmed cases per fault-free week, down from 1.30 before
+ADR-0010, with 16 of 20 weeks clean and a worst week of 6 (§\ref{sec:11.2}) \\
+T-15 & Confusion matrix over the four injected faults on a fixed seed, plus a no-fault arm &
+R-1, R-3 & Each fault classified as itself; the no-fault arm silent & \textbf{Run}, 218 runs:
+\texttt{STUCK\_DAMPER} named correctly, \texttt{BLOCKED\_FILTER} → \texttt{UNCLASSIFIED} 11/11,
+\texttt{SENSOR\_DRIFT} \textbf{never emitted} (0 of 76 from a drift ramp and 0 of 76 from a step
+offset), \textbf{one of four mechanisms classified} (§\ref{sec:7.3}) \\
+T-26 & Comfort during a latched fault, with and without compensation & R-2 & CO₂ ≤ 1000 ppm for
+≥ 95 \% of occupied minutes with compensation & \textbf{Run}: 5 of 5 seeds on the drawn weekday, 0
+of 5 at design occupancy, no-fault reference 5 of 5 throughout (§\ref{sec:11.2}) \\
+T-27 & Kill each container in turn & R-4 & \texttt{BLIND} with zero fault events; recovery within
+one cycle & \textbf{Run} in-JVM, 23 of 23 assertions: \texttt{BLIND} in 4 cycles, 0 fault events,
+0 commands on stale data, \texttt{HEALTHY} 3 cycles after recovery (§\ref{sec:11.2}); container kills
+\textbf{now also run} against \texttt{docker compose}: five of six rooms \texttt{BLIND} in 12 s,
+no diagnosis and no healthy-room command while blind, three-cycle recovery, fan held at 158.3~W
+with the supervisor dead; and the restart policy fires on an in-container \texttt{SIGTERM}:
+restart count 1, running again within 3 s (§\ref{sec:11.6}) \\
+T-20 & Rebuild a random diagnosis from the journal & R-5 & Inputs, command, residual series,
+classification and timestamp all recovered & \textbf{Demonstrated live} in the recorded demo run:
+one \texttt{caseId} rebuilt against a real TimescaleDB: HTTP 200, 77\,248 bytes, \textbf{445 events}
+(\texttt{evaluation/\allowbreak results/\allowbreak T-23-demo-run.txt}, §\ref{sec:3} status, §\ref{sec:11.6}). The id
+was the one that run produced rather than a drawn one.
+\textbf{And now tested}: eight integration tests execute \texttt{replayCase}'s real SQL against a
+real PostgreSQL, including the one-hour evidence lookback pinned at $-$59, $-$60 and $-$61 min \\
+T-28 & Scale zones per monitor to the breaking point & R-6 & The zone count where p95 cycle
+exceeds 60 s, and the saturated component named & \textbf{Run}: 25\,600 zones at a p95 of about
+6 s measured, $\approx$ 86\,000 extrapolated, \texttt{AhuFlowModel.\allowbreak believedFlowTo} named
+(§\ref{sec:11.2}) \\
+T-34b & Room isolation: one injected fault per run, rotating the injected room over ≥ 3 rooms &
+R-7 & Zero events and no mode change in the other five; their CO₂ and airflow inside the healthy
+band & \textbf{Run}, both occupancy regimes, 540 observed rooms: all six rotated, 3 seeds, 3
+configurations. Drawn weekday \textbf{0 of 270 failed}; design occupancy \textbf{231 of 270
+failed} (§\ref{sec:11.2}) \\
+T-29 & Optional learned one-class contender against the CUSUM on identical seeds & R-1, R-3 &
+Kept only if it wins & \textbf{Run}, 20 seeds and 30 operating points against a held-out
+fault-free week: \textbf{dropped}. To match the monitor's 0.75 detection it costs about 20× the
+false alarms (11.25 against 0.55 per week) and 7× the delay (518 against 74 min) (§\ref{sec:11.2}) \\
+T-35 & Classify after a probe has been judged, or at confirmation? 176 paired runs on identical
+seeds & R-1 & Kept only if it buys classification accuracy at an acceptable delay &
+\textbf{Run}: \textbf{not adopted}. Detection moves in 0 of 88 pairs and the fault is named on a
+judged step in 28 of the 39 runs that defer against 0 before, and the settled classification is
+identical in all 88 pairs, because the judged step reads \texttt{MISSING} for every condition
+including rooms whose dampers are healthy (§\ref{sec:7.3}, §\ref{sec:11.2}) \\
+T-36 & One observation published on the real broker, consumed by the running
+\texttt{fault-monitor} and asserted in the real journal & R-5 & The published observation reaches
+the journal through a process this test does not run, unchanged & \textbf{Run}, 2 tests against the
+deployed stack: the row carries the published wattage, the publisher's instant rather than the
+subscriber's, and \texttt{source = fault-\allowbreak monitor}; and a reading for a room outside
+\texttt{ZONE\_\allowbreak COUNT} is journalled nowhere. It injects under an invented \emph{AHU} id,
+which touches no room's model. Without the stack both \textbf{skip} with the reason attached \\
+T-37 & A latched diagnosis survives a \texttt{SIGKILL} and restart of its container & --- &
+What the process concluded outlives the process, so a restart is not a back door through the one
+exit the design reserves for a technician & \textbf{Run live on the demo profile}, not in the
+suite: \texttt{evaluation/\allowbreak results/\allowbreak T-37-\allowbreak restart-\allowbreak recovery.txt}. The case id
+\texttt{779b28fb} and \texttt{confirmedAt} 10:09:00.798 are identical either side of the kill
+while \texttt{updatedAt} advances to 11:02, which a cold start cannot produce because both are
+minted at confirmation. \texttt{unresponsiveDampers} and the 0.15 pin return with it, and no
+\texttt{.pending} file is ever left behind. The round trip and the missing-document cold start are
+covered by unit tests; this is the deployed-container record \\
+\bottomrule
+\end{longtable}
+
+\subsection{The state of the suite and the harness, stated plainly}\label{sec:K.2}
+
+A full \texttt{mvn -o clean test} run on \factSuiteRunDate{} reports \textbf{BUILD SUCCESS over all
+\factReactorModules{} reactor modules: \factSuiteTests{} tests, 0 failures, 0 errors}
+(\texttt{shared} 296, \texttt{physics-simulator} 63, \texttt{co2-sensor} 12, \texttt{damper-actuator}
+10, \texttt{dcv-controller} 16, \texttt{fault-monitor} 97, \texttt{supervisor} 61,
+\texttt{dashboard} 32 and \texttt{evaluation} 34, with the root POM carrying none of its own).
+\texttt{evaluation} had no tests at all until T-15 gave it one worth writing. The experiment
+harness was the last unverified code in the tree.
+
+\textbf{No skip is a gap, and the skip count is not a fixed property of the suite.} The
+\factGuardedTests{} tests that can skip assume something outside the JVM is reachable: the
+\factJournalTests{} journal tests that execute R-5's real SQL against a PostgreSQL (T-20), the
+\factPipelineTests{} pipeline tests that additionally need the broker and a running \texttt{fault-monitor} to publish
+into (T-36), and the \factReconnectTests{} reconnect test that needs the broker. Without them all
+\factGuardedTests{} skip rather than fail, which is what keeps the suite runnable in seconds with
+nothing installed; with the stack up all \factGuardedTests{} run and pass and the same command
+reports \textbf{\factSuiteTests{} tests and 0 skipped}, which is the measurement the row for T-36
+above comes from. Starting anything is deliberately not the default: a suite that waited on a database
+(or, under \texttt{mvn -o} on a machine without the image, downloaded 2.4~GB of it) would trade
+away the property this subsection is about for a test better run on purpose. T-36 has no autostart
+path at all, and should not: it asserts on a running system, and a test that stood the system up
+would be asserting on one it had just configured itself.
+
+The count moves between runs because the code is still being worked on; what
+matters is that nothing is red, nothing is disabled, and the suite is fast enough to run on every
+change, which is a direct consequence of the control layer being free of framework and transport
+types (Section \ref{sec:4.4}).
+
+What was the single largest gap in this project is now closed. \texttt{evaluation/} holds its own
+sources (a \texttt{Main} and \textbf{\factExperiments{}} experiments), and a full run on OpenJDK 25.0.3 completes
+in \textbf{350 s} of wall clock, writing the nine result tables Section \ref{sec:11.2} reports from:
+T-15 52.2 s, T-24 8.6 s, T-25 15.5 s, T-26 4.8 s, T-27 0.3 s, T-28 121.6 s, T-29 96.3 s,
+T-34b 9.2 s, T-35 41.5 s, T-22 0.0 s.
+
+\textbf{That run is also the evidence for the determinism claim in Section \ref{sec:13.9}}, and it is worth
+stating as a result rather than a property. Re-running the whole harness against the committed
+result files leaves \textbf{eight of the nine byte-identical}: T-15, T-24, T-25, T-26, T-27, T-29,
+T-34b and T-35 all reproduce exactly. The ninth is T-28, and it does not reproduce because it is the
+one experiment that measures \emph{wall clock} rather than simulated behaviour; its cycle-time
+columns move with host load, which is the point of it. So ``the offline harness is reproducible bit
+for bit'' is a measured statement with one named exception, and the exception is the experiment
+where bit-for-bit reproduction would mean the measurement was not being taken. Every javadoc reference
+to ``the evaluation harness measures this'' now names a consumer that exists, and
+\texttt{fault-monitor/src/} is in git with the rest. The gaps that remain are gaps in evidence
+rather than in code, and Section \ref{sec:11.6} lists them.

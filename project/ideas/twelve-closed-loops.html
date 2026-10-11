@@ -1,0 +1,2131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Twenty-Two Closed Loops</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62.5..125,400..700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400..600;1,8..60,400..600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+:root {
+  --paper:        #E9EDF1;
+  --sheet:        #FAFBFC;
+  --sheet-sunk:   #F1F4F7;
+  --ink:          #101A24;
+  --ink-soft:     #3D4E5E;
+  --ink-mute:     #6B7C8B;
+  --rule:         #C9D4DE;
+  --rule-soft:    #DDE4EA;
+  --accent:       #1B5E9C;
+  --accent-deep:  #123A61;
+  --accent-wash:  #DCE7F2;
+  --good:         #2C6E52;
+  --warn:         #9C6413;
+  --hot:          #9E3A31;
+  --good-wash:    #DCEBE3;
+  --warn-wash:    #F4E8D4;
+  --hot-wash:     #F2DEDB;
+  --shadow:       0 1px 2px rgba(16,26,36,.07), 0 8px 24px -14px rgba(16,26,36,.22);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper:      #0C131A;
+    --sheet:      #131C25;
+    --sheet-sunk: #101922;
+    --ink:        #DCE5ED;
+    --ink-soft:   #AEBDCA;
+    --ink-mute:   #7C8D9C;
+    --rule:       #26343F;
+    --rule-soft:  #1D2932;
+    --accent:     #6BA9DF;
+    --accent-deep:#A5CBEC;
+    --accent-wash:#152634;
+    --good:       #62B08A;
+    --warn:       #D0A257;
+    --hot:        #DB7C71;
+    --good-wash:  #16271F;
+    --warn-wash:  #26200F;
+    --hot-wash:   #2A1815;
+    --shadow:     0 1px 2px rgba(0,0,0,.4), 0 10px 28px -16px rgba(0,0,0,.75);
+  }
+}
+:root[data-theme="dark"] {
+  --paper:      #0C131A;
+  --sheet:      #131C25;
+  --sheet-sunk: #101922;
+  --ink:        #DCE5ED;
+  --ink-soft:   #AEBDCA;
+  --ink-mute:   #7C8D9C;
+  --rule:       #26343F;
+  --rule-soft:  #1D2932;
+  --accent:     #6BA9DF;
+  --accent-deep:#A5CBEC;
+  --accent-wash:#152634;
+  --good:       #62B08A;
+  --warn:       #D0A257;
+  --hot:        #DB7C71;
+  --good-wash:  #16271F;
+  --warn-wash:  #26200F;
+  --hot-wash:   #2A1815;
+  --shadow:     0 1px 2px rgba(0,0,0,.4), 0 10px 28px -16px rgba(0,0,0,.75);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Source Serif 4", Charter, Georgia, serif;
+  font-size: 16.5px;
+  line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px 96px; }
+
+h1, h2, h3, h4, .disp {
+  font-family: Archivo, "Helvetica Neue", Arial, sans-serif;
+  font-stretch: 88%;
+  text-wrap: balance;
+  margin: 0;
+}
+.mono, code, .chip, .tag, .sheetno, th, .metric {
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* ---------- cover sheet ---------- */
+.cover {
+  border-bottom: 2px solid var(--ink);
+  padding: 56px 0 26px;
+  margin-bottom: 34px;
+}
+.eyebrow {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11.5px; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--ink-mute);
+  display: flex; flex-wrap: wrap; gap: 8px 18px;
+  margin-bottom: 22px;
+}
+.cover h1 {
+  font-size: clamp(38px, 6.4vw, 68px);
+  font-weight: 700; font-stretch: 82%;
+  letter-spacing: -.02em; line-height: .98;
+  margin-bottom: 18px;
+}
+.cover h1 em { font-style: normal; color: var(--accent); }
+.standfirst {
+  font-size: clamp(17px, 2vw, 20px);
+  color: var(--ink-soft);
+  max-width: 62ch;
+}
+
+.gate {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 1px; background: var(--rule);
+  border: 1px solid var(--rule);
+  margin: 34px 0 8px;
+}
+.gate > div { background: var(--sheet); padding: 15px 17px; }
+.gate dt {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10.5px; letter-spacing: .13em; text-transform: uppercase;
+  color: var(--accent); margin-bottom: 6px;
+}
+.gate dd { margin: 0; font-size: 14.5px; line-height: 1.5; color: var(--ink-soft); }
+
+/* ---------- section furniture ---------- */
+section { margin-top: 62px; scroll-margin-top: 20px; }
+.sechead { display: flex; align-items: baseline; gap: 14px; border-bottom: 1px solid var(--ink); padding-bottom: 9px; margin-bottom: 26px; }
+.sechead h2 { font-size: clamp(22px, 3vw, 30px); font-weight: 700; letter-spacing: -.01em; }
+.sechead .num { font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--accent); letter-spacing: .1em; }
+.lede { max-width: 66ch; color: var(--ink-soft); margin: 0 0 24px; }
+
+/* ---------- matrix ---------- */
+.tablewrap { overflow-x: auto; border: 1px solid var(--rule); background: var(--sheet); }
+table { border-collapse: collapse; width: 100%; min-width: 860px; }
+th {
+  font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; font-weight: 500;
+  color: var(--ink-mute); text-align: left;
+  padding: 12px 12px; border-bottom: 1px solid var(--rule);
+  background: var(--sheet-sunk); vertical-align: bottom;
+}
+td { padding: 11px 12px; border-bottom: 1px solid var(--rule-soft); font-size: 14.5px; vertical-align: middle; }
+tbody tr:last-child td { border-bottom: 0; }
+tbody tr:hover td { background: var(--sheet-sunk); }
+td.name { font-family: Archivo, sans-serif; font-stretch: 88%; font-weight: 600; font-size: 14.5px; }
+td.name a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--rule); }
+td.name a:hover { border-bottom-color: var(--accent); color: var(--accent); }
+td .id { font-family: "IBM Plex Mono", monospace; font-size: 11.5px; color: var(--accent); display: block; letter-spacing: .05em; }
+
+.bars { display: inline-flex; gap: 2.5px; }
+.bars i { width: 7px; height: 15px; background: var(--rule); display: block; }
+.bars i.on { background: var(--accent); }
+.bars.cost i.on { background: var(--warn); }
+tr.pick td { background: var(--accent-wash); }
+tr.pick:hover td { background: var(--accent-wash); }
+
+/* ---------- recommendation ---------- */
+.rec { border: 1px solid var(--rule); background: var(--sheet); box-shadow: var(--shadow); }
+.rec-head { padding: 20px 24px 16px; border-bottom: 1px solid var(--rule); }
+.rec-head h3 { font-size: 21px; font-weight: 700; margin-bottom: 6px; }
+.rec-body { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1px; background: var(--rule); }
+.rec-body > div { background: var(--sheet); padding: 20px 24px; }
+.rec-body h4 { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; font-family: "IBM Plex Mono", monospace; font-stretch: normal; color: var(--accent); margin-bottom: 9px; }
+.rec-body p { margin: 0 0 10px; font-size: 15px; color: var(--ink-soft); }
+.rec-body p:last-child { margin-bottom: 0; }
+
+/* ---------- idea sheets ---------- */
+.sheets { display: flex; flex-direction: column; gap: 26px; }
+.sheet {
+  border: 1px solid var(--rule);
+  background: var(--sheet);
+  box-shadow: var(--shadow);
+}
+.sheet-head {
+  display: flex; flex-wrap: wrap; align-items: flex-start; gap: 14px 20px;
+  padding: 20px 24px 17px;
+  border-bottom: 1px solid var(--rule);
+}
+.sheetno {
+  font-size: 12px; letter-spacing: .12em; color: var(--accent);
+  border: 1px solid var(--accent); padding: 3px 8px; align-self: center;
+  white-space: nowrap;
+}
+.sheet-title { flex: 1 1 320px; }
+.sheet-title h3 { font-size: clamp(19px, 2.4vw, 24px); font-weight: 700; letter-spacing: -.01em; line-height: 1.15; }
+.thesis { margin: 7px 0 0; color: var(--ink-soft); font-size: 15.5px; max-width: 64ch; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; align-self: center; }
+.chip {
+  font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase;
+  padding: 4px 8px; border: 1px solid var(--rule); color: var(--ink-mute);
+  white-space: nowrap;
+}
+.chip.good { color: var(--good); border-color: var(--good); background: var(--good-wash); }
+.chip.warn { color: var(--warn); border-color: var(--warn); background: var(--warn-wash); }
+.chip.hot  { color: var(--hot);  border-color: var(--hot);  background: var(--hot-wash); }
+
+/* control block diagram */
+.loop { padding: 22px 24px 8px; background: var(--sheet-sunk); border-bottom: 1px solid var(--rule); }
+.loop-label {
+  font-family: "IBM Plex Mono", monospace; font-size: 10.5px; letter-spacing: .13em;
+  text-transform: uppercase; color: var(--ink-mute); margin-bottom: 14px;
+}
+.blocks { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; align-items: stretch; }
+.blk { position: relative; border: 1px solid var(--rule); background: var(--sheet); padding: 11px 13px 13px; border-right-width: 0; }
+.blk:last-child { border-right-width: 1px; }
+.blk .k {
+  font-family: "IBM Plex Mono", monospace; font-size: 10px; letter-spacing: .13em;
+  text-transform: uppercase; color: var(--accent); display: block; margin-bottom: 5px;
+}
+.blk .v { font-size: 13.5px; line-height: 1.42; color: var(--ink-soft); }
+.blk::after {
+  content: ""; position: absolute; right: -6px; top: 50%; z-index: 2;
+  width: 0; height: 0; transform: translateY(-50%);
+  border-left: 6px solid var(--accent); border-top: 5px solid transparent; border-bottom: 5px solid transparent;
+}
+.blk:last-child::after { display: none; }
+.feedback {
+  margin: 0 0 4px; padding: 9px 0 0;
+  border-left: 1px solid var(--accent); border-right: 1px solid var(--accent); border-bottom: 1px solid var(--accent);
+  height: 30px; position: relative;
+}
+.feedback span {
+  position: absolute; left: 50%; top: 100%; transform: translate(-50%, -50%);
+  background: var(--sheet-sunk); padding: 0 10px;
+  font-family: "IBM Plex Mono", monospace; font-size: 10.5px; letter-spacing: .09em;
+  text-transform: uppercase; color: var(--accent); white-space: nowrap;
+}
+@media (max-width: 780px) {
+  .blocks { grid-template-columns: 1fr; }
+  .blk { border-right-width: 1px; border-bottom-width: 0; }
+  .blk:last-child { border-bottom-width: 1px; }
+  .blk::after { right: 50%; top: auto; bottom: -6px; transform: translateX(50%);
+    border-left: 5px solid transparent; border-right: 5px solid transparent;
+    border-top: 6px solid var(--accent); border-bottom: 0; }
+  .feedback { display: none; }
+}
+
+/* detail grid */
+.detail { display: grid; grid-template-columns: repeat(auto-fit, minmax(268px, 1fr)); gap: 1px; background: var(--rule-soft); }
+.detail > div { background: var(--sheet); padding: 17px 24px 19px; }
+.detail h4 {
+  font-family: "IBM Plex Mono", monospace; font-stretch: normal;
+  font-size: 10.5px; letter-spacing: .13em; text-transform: uppercase;
+  color: var(--ink-mute); margin-bottom: 8px;
+}
+.detail p { margin: 0 0 9px; font-size: 14.5px; line-height: 1.55; }
+.detail p:last-child { margin-bottom: 0; }
+.detail ul { margin: 0; padding-left: 17px; font-size: 14.5px; line-height: 1.5; }
+.detail li { margin-bottom: 5px; }
+.detail li:last-child { margin-bottom: 0; }
+code {
+  font-size: 12.5px; background: var(--sheet-sunk); border: 1px solid var(--rule-soft);
+  padding: 1px 5px; color: var(--accent-deep); white-space: nowrap;
+}
+.eq { display: block; margin: 4px 0 10px; font-size: 13px; color: var(--ink); background: var(--sheet-sunk);
+      border-left: 2px solid var(--accent); padding: 8px 11px; overflow-x: auto; white-space: nowrap; }
+
+.oral {
+  border-top: 1px solid var(--rule);
+  padding: 17px 24px 19px;
+  display: flex; gap: 16px; align-items: flex-start;
+  background: var(--sheet-sunk);
+}
+.oral .q {
+  font-family: "IBM Plex Mono", monospace; font-size: 10.5px; letter-spacing: .13em;
+  text-transform: uppercase; color: var(--accent); padding-top: 4px; white-space: nowrap;
+}
+.oral p { margin: 0; font-style: italic; font-size: 15.5px; color: var(--ink); max-width: 74ch; }
+
+.api { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
+.api span {
+  font-family: "IBM Plex Mono", monospace; font-size: 11px;
+  border: 1px solid var(--rule); padding: 2px 6px; color: var(--ink-soft); background: var(--sheet-sunk);
+}
+
+/* rejected + closing */
+.rejected { border: 1px solid var(--rule); background: var(--sheet); }
+.rejected > div { display: grid; grid-template-columns: minmax(190px, 1fr) 2.4fr; gap: 18px; padding: 13px 20px; border-bottom: 1px solid var(--rule-soft); font-size: 14.5px; }
+.rejected > div:last-child { border-bottom: 0; }
+.rejected strong { font-family: Archivo, sans-serif; font-stretch: 88%; font-weight: 600; }
+@media (max-width: 620px) { .rejected > div { grid-template-columns: 1fr; gap: 4px; } }
+
+ol.steps { counter-reset: s; list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 14px; }
+ol.steps li { counter-increment: s; display: grid; grid-template-columns: 34px 1fr; gap: 14px; align-items: start; }
+ol.steps li::before {
+  content: counter(s); font-family: "IBM Plex Mono", monospace; font-size: 12px;
+  color: var(--accent); border: 1px solid var(--accent); text-align: center;
+  padding: 3px 0; line-height: 1.3;
+}
+ol.steps p { margin: 0; }
+ol.steps b { font-family: Archivo, sans-serif; font-stretch: 88%; }
+
+footer { margin-top: 70px; padding-top: 20px; border-top: 2px solid var(--ink); color: var(--ink-mute); font-size: 13.5px; }
+a { color: var(--accent); }
+a:focus-visible, td.name a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+/* ---------- deep-dive figures ---------- */
+.figtitle { font-size: clamp(17px, 2.1vw, 21px); font-weight: 700; margin: 34px 0 8px; letter-spacing: -.01em; }
+.figlede { max-width: 70ch; color: var(--ink-soft); margin: 0 0 14px; font-size: 15.5px; }
+.figure {
+  background: #0E1F2E; border: 1px solid #24445F;
+  padding: 20px 18px; overflow-x: auto; box-shadow: var(--shadow);
+}
+.figure pre.mermaid {
+  background: transparent; border: 0; margin: 0; padding: 0;
+  font-family: "IBM Plex Mono", monospace; color: #9FBBD2;
+  display: flex; justify-content: center; min-width: 520px;
+}
+.figure svg { display: block; margin: 0 auto; max-width: 100%; height: auto; }
+.figcap { max-width: 74ch; color: var(--ink-mute); font-size: 14px; margin: 10px 0 0; }
+.oral .q + p .mono { color: var(--ink); }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<header class="cover">
+  <div class="eyebrow">
+    <span>D7065E · Embedded Intelligence at the Edge</span>
+    <span>Project idea catalogue</span>
+    <span>Proposal due 10 Sep 23:59</span>
+  </div>
+  <h1>Twenty-two ways to close<br>the loop <em>on BuildSim</em></h1>
+  <p class="standfirst">
+    Each entry is a complete cyber-physical loop, not a topic: something senses, something decides,
+    something acts, and the act changes what is sensed next. All twenty-two are checked against
+    what BuildSim's API can actually represent and against what one person can defend, alone,
+    for thirty minutes without notes.
+  </p>
+
+  <dl class="gate">
+    <div>
+      <dt>Filter 1 · The loop closes</dt>
+      <dd>An actuator command must change the physics, which must change the next sensor reading. Ideas that only observe were cut.</dd>
+    </div>
+    <div>
+      <dt>Filter 2 · Splits into processes</dt>
+      <dd>Five to eight containers with real interfaces — one folder, one container, one box on the C4 L2 diagram.</dd>
+    </div>
+    <div>
+      <dt>Filter 3 · Occupancy drives it</dt>
+      <dd>People arriving, meeting and leaving must be the disturbance the controller fights. That is what the simulator is for.</dd>
+    </div>
+    <div>
+      <dt>Filter 4 · It has a breaking point</dt>
+      <dd>There has to be a knob you can turn — zones, swipes/s, entities — until a stated requirement fails. That plot is the grade-5 evidence.</dd>
+    </div>
+    <div>
+      <dt>Filter 5 · Defensible solo</dt>
+      <dd>Every mechanism must be one you can derive at a whiteboard. Sophistication earns no marks; the guide says so twice.</dd>
+    </div>
+    <div>
+      <dt>Filter 6 · The building is visible</dt>
+      <dd>The demo should light up the 3D viewer — layers, effects, doors, routes, moving people — not just a Grafana tab.</dd>
+    </div>
+  </dl>
+</header>
+
+<section id="matrix">
+  <div class="sechead"><span class="num">01</span><h2>Selection matrix</h2></div>
+  <p class="lede">
+    Scored one to five on what the report and the oral actually reward. <b>Effort</b> is the one column
+    where more is worse — it is drawn in amber for that reason. The three shaded rows are the shortlist argued below.
+  </p>
+  <div class="tablewrap">
+  <table>
+    <thead>
+      <tr>
+        <th style="min-width:230px">Idea</th>
+        <th>Loop strength</th>
+        <th>Visual demo</th>
+        <th>Architecture depth</th>
+        <th>AI fit</th>
+        <th>Oral defensibility</th>
+        <th>Effort</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="name"><span class="id">A-01</span><a href="#a01">Zone access + air-quality coupling</a></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+        <td><span class="bars cost"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+      </tr>
+      <tr>
+        <td class="name"><span class="id">A-02</span><a href="#a02">Energy-aware climate control</a></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></td>
+        <td><span class="bars cost"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span></td>
+      </tr>
+      <tr class="pick">
+        <td class="name"><span class="id">A-03</span><a href="#a03">Fire, sprinkler suppression &amp; egress</a></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+        <td><span class="bars cost"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></td>
+      </tr>
+      <tr>
+        <td class="name"><span class="id">A-04</span><a href="#a04">Daylight-harvesting lighting</a></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></td>
+        <td><span class="bars cost"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span></td>
+      </tr>
+      <tr>
+        <td class="name"><span class="id">A-05</span><a href="#a05">Cleaning-robot fleet dispatch</a></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+        <td><span class="bars cost"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+      </tr>
+      <tr class="pick">
+        <td class="name"><span class="id">A-06</span><a href="#a06">Ventilation fault detection &amp; diagnosis</a></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></td>
+        <td><span class="bars cost"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></td>
+      </tr>
+      <tr>
+        <td class="name"><span class="id">A-07</span><a href="#a07">Peak-demand load shedding</a></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></td>
+        <td><span class="bars cost"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+      </tr>
+      <tr>
+        <td class="name"><span class="id">A-08</span><a href="#a08">Booking with predictive pre-ventilation</a></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+        <td><span class="bars cost"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></td>
+      </tr>
+      <tr>
+        <td class="name"><span class="id">A-09</span><a href="#a09">Water-leak detection &amp; isolation</a></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+        <td><span class="bars cost"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></td>
+      </tr>
+      <tr>
+        <td class="name"><span class="id">A-10</span><a href="#a10">Predictive maintenance with derating</a></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></td>
+        <td><span class="bars cost"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></td>
+      </tr>
+      <tr class="pick">
+        <td class="name"><span class="id">A-11</span><a href="#a11">Outdoor-air vs CO₂ conflict</a></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></td>
+        <td><span class="bars cost"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span></td>
+      </tr>
+      <tr>
+        <td class="name"><span class="id">A-12</span><a href="#a12">Self-tuning optimal-start heating</a></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></td>
+        <td><span class="bars cost"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span></td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="recommendation">
+  <div class="sechead"><span class="num">02</span><h2>What I would actually build</h2></div>
+  <p class="lede">
+    Three of the twelve are worth arguing about. One of them is the one you have already started,
+    and the honest recommendation is a graft rather than a restart.
+  </p>
+
+  <div class="rec">
+    <div class="rec-head">
+      <h3>Keep A-01, graft the safety spine of A-03 onto it</h3>
+      <p class="thesis">Access control where a confirmed fire alarm overrides every lock — the same system, one new authority question, seven existing ADRs preserved.</p>
+    </div>
+    <div class="rec-body">
+      <div>
+        <h4>Why the graft</h4>
+        <p>The decision currently blocking ADR-0004 is <em>fail-safe versus fail-secure per door class</em>. That is not an access-control question at all — it is the fire-egress question. A-03 is where that question comes from, so grafting it does not add scope, it <em>supplies the missing rationale</em> for a decision you already owe.</p>
+        <p>You gain the fire and smoke effects, the egress routing and the moving occupants — the visual demo A-01 lacks — and a genuine Simplex split: a safety controller that unlocks egress on alarm, sitting above a policy engine that would otherwise keep doors shut.</p>
+      </div>
+      <div>
+        <h4>What it costs</h4>
+        <p>One more physical process in the simulator (fire growth and smoke filling) and one more container. In exchange, the fault-injection and unsafe-control-action sections of the report write themselves, because the STPA table has an obvious top entry: <em>the access service holds a door locked while the zone behind it is filling with smoke.</em></p>
+        <p>Bound it hard: one floor, three egress doors, one fire source. Resist a second fire.</p>
+      </div>
+      <div>
+        <h4>If you would rather restart</h4>
+        <p><b>A-11</b> is the best effort-to-grade ratio on the sheet: one actuator, two objectives that genuinely fight, a Pareto plot no other project will have, and a control problem you can draw from memory. Two days of sunk ADR work is the whole switching cost.</p>
+        <p><b>A-06</b> is the safest grade-5 route, because fault injection is the subject rather than an afterthought — but its demo is charts, not a burning building.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="sheets">
+  <div class="sechead"><span class="num">03</span><h2>The first twelve</h2></div>
+  <p class="lede">
+    Each sheet is laid out as a control block diagram followed by the six things the proposal asks for.
+    Fill in the numbers and any one of these is a submittable 1–2 page proposal.
+  </p>
+
+  <div class="sheets">
+
+  <!-- ================= A-01 ================= -->
+  <article class="sheet" id="a01">
+    <div class="sheet-head">
+      <span class="sheetno">A-01</span>
+      <div class="sheet-title">
+        <h3>Zone access control with a coupled air-quality loop</h3>
+        <p class="thesis">Badges open doors; the people who walk through them poison the air; the air budget decides who gets in next.</p>
+      </div>
+      <div class="chips"><span class="chip good">your current pick</span><span class="chip">two loops</span><span class="chip warn">scope risk</span></div>
+    </div>
+
+    <div class="loop">
+      <div class="loop-label">Control loop</div>
+      <div class="blocks">
+        <div class="blk"><span class="k">Sense</span><span class="v">Badge swipes, door position sensors, per-zone CO₂ and occupant count</span></div>
+        <div class="blk"><span class="k">Decide</span><span class="v">Policy engine: is this credential permitted, <em>and</em> does the zone have air budget left?</span></div>
+        <div class="blk"><span class="k">Act</span><span class="v">Lock state on the door; ventilation rate on the zone AHU</span></div>
+        <div class="blk"><span class="k">Physics</span><span class="v">Admitted people raise CO₂ by mass balance; fan flow removes it</span></div>
+      </div>
+      <div class="feedback"><span>CO₂ rise constrains the next admission</span></div>
+    </div>
+
+    <div class="detail">
+      <div>
+        <h4>Physical model</h4>
+        <p>Well-mixed CO₂ mass balance per zone:</p>
+        <span class="eq">V·dC/dt = n·G + Q·(C_out − C)</span>
+        <p>with G ≈ 0.005 m³/h of CO₂ per seated adult, Q the supply airflow set by the actuator, V from the room's floor area × 2.7 m. Occupancy is a weekday schedule — arrivals 07:00–09:00, a lunch trough, departures 16:00–18:00 — plus booked meetings and a random no-show rate.</p>
+      </div>
+      <div>
+        <h4>Decision route</h4>
+        <p>Rules with explicit state, not a classifier. Permission check against a <em>versioned</em> policy, then an admission guard: refuse or throttle entry when projected CO₂ at +15 min exceeds 1500 ppm. Hysteresis on the guard so the door does not chatter.</p>
+        <p>AI layer, advisory only: an anomaly detector over swipe sequences (tailgating, impossible travel, out-of-hours patterns) that raises alerts and <b>never</b> issues a lock command — a provenance assertion in the tests proves it.</p>
+      </div>
+      <div>
+        <h4>Aggregates</h4>
+        <ul>
+          <li><b>Zone</b> — capacity, occupancy, air budget; invariant: occupancy never exceeds capacity</li>
+          <li><b>Door</b> — position, lock, door class; invariant: an egress door is never left locked</li>
+          <li><b>AccessPolicy</b> — versioned rule set, immutable once published</li>
+          <li><b>AdmissionDecision</b> — the event, carrying inputs, policy version and outcome</li>
+        </ul>
+      </div>
+      <div>
+        <h4>Containers</h4>
+        <ul>
+          <li><code>badge-reader</code> ×N — device processes, publish swipes</li>
+          <li><code>door-gateway</code> — sole writer of BuildSim door state</li>
+          <li><code>access-service</code> — policy and admission decisions</li>
+          <li><code>air-simulator</code> — CO₂ physics and occupancy</li>
+          <li><code>vent-actuator</code> — applies fan commands</li>
+          <li><code>anomaly-detector</code> — advisory alerts</li>
+          <li><code>broker</code>, <code>store</code>, <code>dashboard</code></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Evaluation &amp; breaking point</h4>
+        <p>p95 swipe→unlock latency; denial correctness; recall/false-positive rate of the detector on a labelled replay day.</p>
+        <p>Breaking point: raise the shift-change swipe rate until p95 crosses 500 ms — then say <em>which</em> container saturated, and prove it with a flame graph or a queue-depth plot.</p>
+      </div>
+      <div>
+        <h4>Risks</h4>
+        <p>Two loops means two simulators; the air loop is easy to under-build and then it is decoration. Ration your time to it explicitly.</p>
+        <p>BuildSim's <code>PUT /api/doors</code> <em>replaces the whole collection</em> — there is no per-door endpoint. That forces a single-writer gateway, which is an architecture decision you must state rather than discover in week 5.</p>
+        <div class="api"><span>/api/doors</span><span>/api/sensors/{id}/value</span><span>/api/actuators/{id}/state</span><span>/api/room-layers</span><span>/api/occupancy</span><span>/api/alerts</span></div>
+      </div>
+    </div>
+
+    <div class="oral"><span class="q">Oral question</span><p>When the access service is unreachable, who holds authoritative lock state — and why is your answer safe for both a fire exit and a server room?</p></div>
+  </article>
+
+  <!-- ================= A-02 ================= -->
+  <article class="sheet" id="a02">
+    <div class="sheet-head">
+      <span class="sheetno">A-02</span>
+      <div class="sheet-title">
+        <h3>Energy-aware ventilation and climate control</h3>
+        <p class="thesis">The course's own worked example: hold comfort with the least fan and heater energy. Complete reference material, zero originality.</p>
+      </div>
+      <div class="chips"><span class="chip">baseline route</span><span class="chip hot">graded against the model answer</span></div>
+    </div>
+
+    <div class="loop">
+      <div class="loop-label">Control loop</div>
+      <div class="blocks">
+        <div class="blk"><span class="k">Sense</span><span class="v">Room temperature, CO₂, estimated occupancy</span></div>
+        <div class="blk"><span class="k">Decide</span><span class="v">Rule set with hysteresis over comfort band and CO₂ ceiling</span></div>
+        <div class="blk"><span class="k">Act</span><span class="v">Supply-air setpoint, fan stage, heater setpoint</span></div>
+        <div class="blk"><span class="k">Physics</span><span class="v">Heat balance plus CO₂ mass balance driven by occupancy</span></div>
+      </div>
+      <div class="feedback"><span>Fan and heater output move the next reading</span></div>
+    </div>
+
+    <div class="detail">
+      <div>
+        <h4>Why it is on the list</h4>
+        <p>Because it is the reference implementation. <code>final_report_example</code> already contains its container diagram, its interface table, its three pgfplots figures and its breaking point at roughly 55 zones. If you are short of time in week 6, this is the parachute.</p>
+      </div>
+      <div>
+        <h4>Why it is ranked low</h4>
+        <p>The examiner wrote the model answer. Every design choice you make will be read as agreement or deviation from a document he already has, and the interesting parts of your grade — justification, honest critique — get compared against a grade-5 exemplar of the same system.</p>
+      </div>
+      <div>
+        <h4>If you take it anyway</h4>
+        <p>Deviate deliberately in one dimension and say so in the report: a different storage split, a different decision route, or a fault model the example does not cover. A documented, justified deviation reads as engineering; an unremarked copy reads as transcription.</p>
+        <div class="api"><span>/api/sensors/{id}/value</span><span>/api/actuators/{id}/state</span><span>/api/room-layers</span></div>
+      </div>
+    </div>
+
+    <div class="oral"><span class="q">Oral question</span><p>What did you do differently from the worked example, and what did that cost you?</p></div>
+  </article>
+
+  <!-- ================= A-03 ================= -->
+  <article class="sheet" id="a03">
+    <div class="sheet-head">
+      <span class="sheetno">A-03</span>
+      <div class="sheet-title">
+        <h3>Fire growth, sprinkler suppression and egress routing</h3>
+        <p class="thesis">A fire grows, smoke fills rooms, sprinklers fight it, locked doors disappear from the walkable graph and people are re-routed around the smoke.</p>
+      </div>
+      <div class="chips"><span class="chip good">best demo</span><span class="chip good">safety architecture</span><span class="chip hot">largest scope</span></div>
+    </div>
+
+    <div class="loop">
+      <div class="loop-label">Control loop</div>
+      <div class="blocks">
+        <div class="blk"><span class="k">Sense</span><span class="v">Heat and smoke detectors per room, door position and lock state, occupant positions</span></div>
+        <div class="blk"><span class="k">Decide</span><span class="v">Safety controller (alarm → unlock egress) above a router that avoids smoke-filled rooms</span></div>
+        <div class="blk"><span class="k">Act</span><span class="v">Sprinkler valves, door locks, per-occupant route assignment</span></div>
+        <div class="blk"><span class="k">Physics</span><span class="v">t² fire growth, smoke filling and spread along room adjacency, water suppression</span></div>
+      </div>
+      <div class="feedback"><span>Water lowers heat release; smoke changes the next route</span></div>
+    </div>
+
+    <div class="detail">
+      <div>
+        <h4>Physical model</h4>
+        <p>Heat release rate follows the standard growth law, suppressed exponentially once water is applied:</p>
+        <span class="eq">Q̇(t) = α·t²,  then Q̇ ← Q̇·e^(−k·t_water)</span>
+        <p>Smoke fills a room as a rising layer and spreads to adjacent rooms through the existing floor graph; obscuration in a room sets a detector reading and a visibility value that the router treats as impassable above a threshold.</p>
+      </div>
+      <div>
+        <h4>Decision route</h4>
+        <p>This is the course's runtime-assurance pattern made literal. A <b>safety controller</b> — dumb, fast, always right — unlocks every egress door and sounds the alarm on a confirmed detection. Above it, an <b>advanced controller</b> computes per-occupant routes via <code>GET /api/graph/route</code>, avoiding smoke.</p>
+        <p>The safety controller can veto the router; the router can never keep a door locked. That is a Simplex architecture you can draw in one minute at the whiteboard, which is exactly what the oral rewards.</p>
+      </div>
+      <div>
+        <h4>AI layer</h4>
+        <p>Early fire classification by sensor fusion — heat rate-of-rise plus smoke obscuration plus CO — against a single-threshold baseline. The metric that matters is <em>false alarms per simulated week</em> versus <em>detection delay</em>, because a fire alarm that unlocks the whole building has a real cost when it is wrong. That trade-off curve is a first-class report figure.</p>
+      </div>
+      <div>
+        <h4>Containers</h4>
+        <ul>
+          <li><code>fire-simulator</code> — growth, smoke, suppression</li>
+          <li><code>detector</code> ×N — device processes per room</li>
+          <li><code>safety-controller</code> — alarm and egress authority</li>
+          <li><code>evacuation-router</code> — route assignment</li>
+          <li><code>door-gateway</code>, <code>sprinkler-actuator</code></li>
+          <li><code>occupant-simulator</code> — moves entities along assigned routes</li>
+          <li><code>broker</code>, <code>store</code>, <code>dashboard</code></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Evaluation &amp; breaking point</h4>
+        <p>Time from ignition to full egress; occupants who ever enter a smoke-filled room (should be zero); detection delay; false-alarm rate; water used.</p>
+        <p>Breaking point: increase simultaneous evacuees until route recomputation cannot keep up with the 1 Hz tick. BuildSim caps at 2 000 entities per snapshot, which gives you a hard ceiling to plot against.</p>
+      </div>
+      <div>
+        <h4>Risks</h4>
+        <p>The obvious one is scope — bound it to <b>one floor, one ignition point, three egress doors, 80 occupants</b> and say in the proposal that you did.</p>
+        <p>Smoke spread is easy to over-model. A two-zone layer model per room is defensible; a CFD ambition is not, and the guide explicitly rewards honesty about a simple model over silence about a complex one.</p>
+        <div class="api"><span>/api/effects</span><span>/api/entities</span><span>/api/doors</span><span>/api/graph/route</span><span>/api/room-layers</span><span>/api/alerts</span><span>/api/sessions/{id}/route</span></div>
+      </div>
+    </div>
+
+    <div class="oral"><span class="q">Oral question</span><p>Name one unsafe control action in your system and the constraint that prevents it. Then tell me what happens if the safety controller itself crashes.</p></div>
+  </article>
+
+  <!-- ================= A-04 ================= -->
+  <article class="sheet" id="a04">
+    <div class="sheet-head">
+      <span class="sheetno">A-04</span>
+      <div class="sheet-title">
+        <h3>Daylight-harvesting lighting on a Luleå winter</h3>
+        <p class="thesis">Dim the lights to whatever the sun is not providing — in a town where the sun provides three hours in December and twenty-one in June.</p>
+      </div>
+      <div class="chips"><span class="chip good">low effort</span><span class="chip good">clean energy baseline</span><span class="chip warn">needs depth added</span></div>
+    </div>
+
+    <div class="loop">
+      <div class="loop-label">Control loop</div>
+      <div class="blocks">
+        <div class="blk"><span class="k">Sense</span><span class="v">Ceiling lux sensor, PIR presence, wall-switch overrides</span></div>
+        <div class="blk"><span class="k">Decide</span><span class="v">Hold 500 lux at the desk while occupied; predict dwell to avoid nuisance switch-off</span></div>
+        <div class="blk"><span class="k">Act</span><span class="v">Per-luminaire dim level 0–100 %</span></div>
+        <div class="blk"><span class="k">Physics</span><span class="v">Daylight through the window by solar position, plus artificial contribution</span></div>
+      </div>
+      <div class="feedback"><span>Dimming changes measured lux directly</span></div>
+    </div>
+
+    <div class="detail">
+      <div>
+        <h4>Physical model</h4>
+        <span class="eq">E_room = E_daylight(t, orientation, cloud) + d·E_max</span>
+        <p>Solar altitude for latitude 65.6° N gives you a genuinely dramatic seasonal signal for free, and a cloud process as a slow random walk gives the controller something to fight. Occupancy comes from the same weekday schedule every idea on this sheet shares.</p>
+      </div>
+      <div>
+        <h4>What stops it being trivial</h4>
+        <p>Three things, and you must build all three or the project is thin: PIR sensors that <em>miss stationary people</em>, so raw presence is unreliable and needs a dwell model; the lux sensor reading its own lamp, which is a positive feedback path that will oscillate if you use a naive proportional controller; and a manual override that must decay back to automatic.</p>
+        <p>That oscillation is the best thing in this idea — it is a real stability argument you can plot, explain, and fix with a deadband.</p>
+      </div>
+      <div>
+        <h4>Evaluation &amp; breaking point</h4>
+        <p>kWh against always-on and against a plain occupancy-only baseline; minutes below 300 lux while occupied; nuisance switch-offs per day; oscillation amplitude before and after the deadband.</p>
+        <p>Breaking point: luminaires per controller until the loop period slips.</p>
+        <div class="api"><span>/api/illumination</span><span>/api/sensors/{id}/value</span><span>/api/actuators/{id}/state</span><span>/api/room-layers</span></div>
+      </div>
+    </div>
+
+    <div class="oral"><span class="q">Oral question</span><p>Your lux sensor sees the lamp it controls. Why does your loop not oscillate, and what did you measure to show it?</p></div>
+  </article>
+
+  <!-- ================= A-05 ================= -->
+  <article class="sheet" id="a05">
+    <div class="sheet-head">
+      <span class="sheetno">A-05</span>
+      <div class="sheet-title">
+        <h3>Cleaning-robot fleet dispatch under battery and door constraints</h3>
+        <p class="thesis">Rooms get dirty at a rate set by footfall; robots have finite charge and cannot pass a locked door. Decide who cleans what, in what order.</p>
+      </div>
+      <div class="chips"><span class="chip good">excellent demo</span><span class="chip">scheduling, not control</span><span class="chip warn">two coupled states</span></div>
+    </div>
+
+    <div class="loop">
+      <div class="loop-label">Control loop</div>
+      <div class="blocks">
+        <div class="blk"><span class="k">Sense</span><span class="v">Per-room soil level, robot battery state of charge, robot position, door lock states</span></div>
+        <div class="blk"><span class="k">Decide</span><span class="v">Assign rooms to robots; decide when to break off and dock</span></div>
+        <div class="blk"><span class="k">Act</span><span class="v">Route command and cleaning mode per robot; dock/undock</span></div>
+        <div class="blk"><span class="k">Physics</span><span class="v">Soil accumulates with footfall, drops when cleaned; charge drains with work, recovers at the dock</span></div>
+      </div>
+      <div class="feedback"><span>Cleaning and charging reset the states the dispatcher reads</span></div>
+    </div>
+
+    <div class="detail">
+      <div>
+        <h4>Physical model</h4>
+        <span class="eq">soil ← soil + β·person_minutes − clean_rate·Δt</span>
+        <span class="eq">SoC ← SoC − (p_move + p_clean)·Δt,  at dock: + p_charge·Δt</span>
+        <p>Two coupled physical states with genuinely different time constants — soil in hours, charge in tens of minutes — which is what makes the scheduling interesting rather than arbitrary.</p>
+      </div>
+      <div>
+        <h4>Decision route</h4>
+        <p>Baseline: greedy nearest-dirtiest with a fixed charge reserve. Contender: an assignment formulation over the next horizon that respects battery feasibility and travel distance from <code>GET /api/graph/route</code>. Both are defensible; the report's job is to show whether the second one earned its complexity, and the guide is explicit that it might not have.</p>
+        <p>The door coupling is the sharp edge: a robot dispatched to a room behind a locked door must detect infeasibility rather than stall, which is a beautifully concrete stale-state problem.</p>
+      </div>
+      <div>
+        <h4>Evaluation &amp; breaking point</h4>
+        <p>Mean and worst-case soil level; rooms exceeding their threshold overnight; metres travelled per room cleaned; battery-depletion events (must be zero).</p>
+        <p>Breaking point: robots × rooms until assignment latency exceeds the dispatch period — a clean, honest scaling curve.</p>
+        <div class="api"><span>/api/entities</span><span>/api/graph/route</span><span>/api/room-layers</span><span>/api/doors</span><span>/api/sessions/{id}/route</span></div>
+      </div>
+    </div>
+
+    <div class="oral"><span class="q">Oral question</span><p>A robot is en route when the door to its target is locked. Walk me through every state it passes through, and where that logic lives.</p></div>
+  </article>
+
+  <!-- ================= A-06 ================= -->
+  <article class="sheet" id="a06">
+    <div class="sheet-head">
+      <span class="sheetno">A-06</span>
+      <div class="sheet-title">
+        <h3>Ventilation fault detection, diagnosis and graceful degradation</h3>
+        <p class="thesis">The damper is stuck and the sensor is drifting. Both look like bad air. Tell them apart, then keep the building comfortable anyway.</p>
+      </div>
+      <div class="chips"><a class="chip good" href="#a06-deep" style="text-decoration:none">deep dive ↓</a><span class="chip good">grade-5 evidence built in</span><span class="chip good">strong AI fit</span><span class="chip">modest demo</span></div>
+    </div>
+
+    <div class="loop">
+      <div class="loop-label">Control loop</div>
+      <div class="blocks">
+        <div class="blk"><span class="k">Sense</span><span class="v">CO₂ per zone, commanded vs. measured damper position, fan power, supply temperature</span></div>
+        <div class="blk"><span class="k">Decide</span><span class="v">Demand-controlled ventilation, plus a residual monitor that classifies the fault</span></div>
+        <div class="blk"><span class="k">Act</span><span class="v">Damper and fan commands; on a diagnosed fault, compensate elsewhere and raise a work order</span></div>
+        <div class="blk"><span class="k">Physics</span><span class="v">CO₂ mass balance with a fault model injected between command and effect</span></div>
+      </div>
+      <div class="feedback"><span>Compensation changes the residual the monitor sees</span></div>
+    </div>
+
+    <div class="detail">
+      <div>
+        <h4>The core idea</h4>
+        <p>Run the same mass balance the controller uses as an <em>observer</em>. Command a known ventilation step and predict the CO₂ decay. The residual between predicted and measured decay separates the faults:</p>
+        <ul>
+          <li><b>Stuck damper</b> — no decay follows the command; fan power unchanged</li>
+          <li><b>Drifting sensor</b> — decay has the right <em>shape</em> but the wrong offset</li>
+          <li><b>Blocked filter</b> — decay is slower than predicted, and fan power is higher for the same flow</li>
+        </ul>
+        <p>Three faults, three distinguishable signatures, one residual. This is a real diagnostic argument and it fits on a whiteboard.</p>
+      </div>
+      <div>
+        <h4>Decision route</h4>
+        <p>CUSUM on the residual as the baseline. The contender is a small autoencoder or one-class model over a window of (command, flow, power, CO₂) — evaluated against the baseline on detection delay and false alarms per week, on identical seeds. If it loses, say so; the guide values that more than a win.</p>
+      </div>
+      <div>
+        <h4>Why it grades well</h4>
+        <p>The report guide asks for fault injection and quantitative evidence for the higher grades. Here fault injection <em>is</em> the use case, so the experiment section is not bolted on. You get detection delay, ROC, comfort-during-fault and recovery time as first-class results rather than as an afterthought.</p>
+        <div class="api"><span>/api/sensors/{id}/value</span><span>/api/actuators/{id}/state</span><span>/api/room-layers</span><span>/api/alerts</span></div>
+      </div>
+    </div>
+
+    <div class="oral"><span class="q">Oral question</span><p>How does your monitor distinguish a stuck damper from a CO₂ sensor drifting upward at 20 ppm a day? Show me the residual.</p></div>
+  </article>
+
+  <!-- ================= A-07 ================= -->
+  <article class="sheet" id="a07">
+    <div class="sheet-head">
+      <span class="sheetno">A-07</span>
+      <div class="sheet-title">
+        <h3>Peak-demand load shedding with a comfort constraint</h3>
+        <p class="thesis">The building has a power ceiling and a price signal. Pre-heat before the peak, shed during it, and never let a zone leave its comfort band.</p>
+      </div>
+      <div class="chips"><span class="chip good">cleanest numbers</span><span class="chip warn">optimisation defence</span></div>
+    </div>
+
+    <div class="loop">
+      <div class="loop-label">Control loop</div>
+      <div class="blocks">
+        <div class="blk"><span class="k">Sense</span><span class="v">Zone temperatures, aggregate power draw, hourly price, outdoor temperature</span></div>
+        <div class="blk"><span class="k">Decide</span><span class="v">Which zones heat in the next interval, subject to a kW cap and comfort bands</span></div>
+        <div class="blk"><span class="k">Act</span><span class="v">Per-zone heater enable and setpoint</span></div>
+        <div class="blk"><span class="k">Physics</span><span class="v">First-order RC thermal model per zone with solar, occupancy and envelope loss</span></div>
+      </div>
+      <div class="feedback"><span>Shedding cools the zone, which raises its priority next interval</span></div>
+    </div>
+
+    <div class="detail">
+      <div>
+        <h4>Physical model</h4>
+        <span class="eq">C·dT/dt = (T_out − T)/R + P_heat + q_occupancy + q_solar</span>
+        <p>One RC pair per zone, identified from a step response you run yourself — which is itself a nice experiment section. Price data from a public SE1 series makes the objective concrete and local.</p>
+      </div>
+      <div>
+        <h4>Decision route</h4>
+        <p>Baseline: priority shedding — coldest zone first, hard kW cap. Contender: a small linear program over a 2–4 hour horizon that pre-heats into the peak using thermal mass as storage. The pre-heating behaviour is visible, explicable and genuinely clever without being opaque.</p>
+        <p>The defence you must prepare: <em>why is the LP feasible in 200 ms, and what do you do in the interval where it is not?</em> Have a fallback to the priority rule and measure how often it fires.</p>
+      </div>
+      <div>
+        <h4>Evaluation &amp; breaking point</h4>
+        <p>kWh, peak kW, cost in SEK, comfort-minutes violated — each against the baseline on identical weather and occupancy seeds. Trade-off curve of cost against comfort.</p>
+        <p>Breaking point: zones × horizon length until solver time exceeds the control period. This is the most legible scaling story of the twelve, because the failure is a hard timeout, not a slow degradation.</p>
+        <div class="api"><span>/api/sensors/{id}/value</span><span>/api/actuators/{id}/state</span><span>/api/room-layers</span></div>
+      </div>
+    </div>
+
+    <div class="oral"><span class="q">Oral question</span><p>Your optimiser missed its deadline at 07:45. What did the building do in that interval, and how do you know it stayed comfortable?</p></div>
+  </article>
+
+  <!-- ================= A-08 ================= -->
+  <article class="sheet" id="a08">
+    <div class="sheet-head">
+      <span class="sheetno">A-08</span>
+      <div class="sheet-title">
+        <h3>Room booking with predictive pre-ventilation</h3>
+        <p class="thesis">A booking is a forecast of occupancy. Ventilate ahead of it, and if a room physically cannot meet the air target in time, book a different room.</p>
+      </div>
+      <div class="chips"><span class="chip good">bounded LLM use</span><span class="chip">reassignment as actuation</span></div>
+    </div>
+
+    <div class="loop">
+      <div class="loop-label">Control loop</div>
+      <div class="blocks">
+        <div class="blk"><span class="k">Sense</span><span class="v">Bookings, current CO₂ and temperature, actual attendance vs. booked headcount</span></div>
+        <div class="blk"><span class="k">Decide</span><span class="v">When to start pre-ventilating each room; whether the room can meet its target at all</span></div>
+        <div class="blk"><span class="k">Act</span><span class="v">Ventilation rate now; room reassignment for the booking; door permissions for attendees</span></div>
+        <div class="blk"><span class="k">Physics</span><span class="v">CO₂ mass balance plus a purge-time model per room volume and flow</span></div>
+      </div>
+      <div class="feedback"><span>Measured purge rate corrects the next lead-time estimate</span></div>
+    </div>
+
+    <div class="detail">
+      <div>
+        <h4>The LLM, done defensibly</h4>
+        <p>Natural-language booking requests — <em>“somewhere for eight people Thursday morning, near the lab”</em> — parsed by <b>LangChain4J</b> into a validated, structured request object. Everything the course notes demand is naturally present: an allowlisted tool set, schema-validated arguments, a step and time limit, a deterministic form-based fallback, and injection handling on untrusted text.</p>
+        <p>Critically, the control loop runs untouched with the model offline. The LLM sits on the <em>intake</em> path, never the control path — which is exactly the answer the examiner wants when he asks where the model's authority ends.</p>
+      </div>
+      <div>
+        <h4>Decision route</h4>
+        <p>Lead time from a first-order purge estimate, <code>t = (V/Q)·ln(ΔC₀/ΔC_target)</code>, corrected online by measured decay. Attendance prediction from booking history — a per-room no-show rate beats any model you could train in six weeks, and saying so <em>is</em> the analysis.</p>
+      </div>
+      <div>
+        <h4>Evaluation &amp; breaking point</h4>
+        <p>CO₂ at meeting start against target; energy spent pre-ventilating rooms nobody used; parse validity rate, fallback rate and p95 latency for the language path; reassignments per week.</p>
+        <p>Breaking point: concurrent bookings until the pre-ventilation schedule becomes infeasible against total plant capacity — a satisfyingly physical limit rather than a software one.</p>
+        <div class="api"><span>/api/sensors/{id}/value</span><span>/api/actuators/{id}/state</span><span>/api/occupancy</span><span>/api/highlights</span><span>/api/alerts</span></div>
+      </div>
+    </div>
+
+    <div class="oral"><span class="q">Oral question</span><p>The language model returns nonsense, or nothing at all. What does a person booking a room experience, and what does the building do?</p></div>
+  </article>
+
+  <!-- ================= A-09 ================= -->
+  <article class="sheet" id="a09">
+    <div class="sheet-head">
+      <span class="sheetno">A-09</span>
+      <div class="sheet-title">
+        <h3>Water-leak detection, localisation and isolation</h3>
+        <p class="thesis">Flow in does not equal flow out. Find which branch is leaking, close the right valve, and dispatch someone — while water spreads through the floor plan.</p>
+      </div>
+      <div class="chips"><span class="chip good">nobody else will pick it</span><span class="chip good">strong visuals</span></div>
+    </div>
+
+    <div class="loop">
+      <div class="loop-label">Control loop</div>
+      <div class="blocks">
+        <div class="blk"><span class="k">Sense</span><span class="v">Branch flow meters, pressure, floor-level water sensors per room</span></div>
+        <div class="blk"><span class="k">Decide</span><span class="v">Localise the leak from the flow imbalance; choose the smallest valve set that isolates it</span></div>
+        <div class="blk"><span class="k">Act</span><span class="v">Close zone valves; dispatch a maintenance entity; warn affected rooms</span></div>
+        <div class="blk"><span class="k">Physics</span><span class="v">Leak flow, water spreading to adjacent rooms, drainage</span></div>
+      </div>
+      <div class="feedback"><span>Closing the valve drops inflow, so levels stop rising</span></div>
+    </div>
+
+    <div class="detail">
+      <div>
+        <h4>The inference problem</h4>
+        <p>A tree of branch meters plus a mass balance at each junction localises a leak to a branch without any machine learning — and the interesting part is that meters are noisy and a small leak hides inside the noise band. The trade-off between <em>time to detect</em> and <em>false isolations</em> is the whole engineering story, and it has an obvious plot.</p>
+        <p>Isolation is a graph problem: find the minimum valve cut that separates the leak while keeping the most fixtures in service. Two lines of reasoning, one satisfying answer.</p>
+      </div>
+      <div>
+        <h4>Physical model</h4>
+        <span class="eq">V_room ← V_room + (q_leak − q_drain)·Δt,  overflow spills to adjacent rooms</span>
+        <p>Spread uses the same adjacency graph everything else uses, so you build one topology and reuse it. Depth per room drives both the sensors and the room layer in the viewer.</p>
+      </div>
+      <div>
+        <h4>Evaluation &amp; breaking point</h4>
+        <p>Time from leak start to isolation; litres spilled; rooms wetted; fixtures unnecessarily taken out of service; false isolations per simulated month.</p>
+        <p>Breaking point: shrink the leak rate until detection time exceeds your requirement — a sensitivity floor, which is a more interesting breaking point than a throughput one.</p>
+        <div class="api"><span>/api/effects</span><span>/api/room-layers</span><span>/api/entities</span><span>/api/actuators/{id}/state</span><span>/api/alerts</span></div>
+      </div>
+    </div>
+
+    <div class="oral"><span class="q">Oral question</span><p>Your smallest detectable leak is what, exactly — and what did you trade away to get there?</p></div>
+  </article>
+
+  <!-- ================= A-10 ================= -->
+  <article class="sheet" id="a10">
+    <div class="sheet-head">
+      <span class="sheetno">A-10</span>
+      <div class="sheet-title">
+        <h3>Predictive maintenance with load derating</h3>
+        <p class="thesis">A fan bearing is failing. Slow the fan and it lasts longer — but the room it serves gets stuffier. Decide how much life to buy, and at what comfort price.</p>
+      </div>
+      <div class="chips"><span class="chip">honest trade-off</span><span class="chip warn">invented degradation model</span></div>
+    </div>
+
+    <div class="loop">
+      <div class="loop-label">Control loop</div>
+      <div class="blocks">
+        <div class="blk"><span class="k">Sense</span><span class="v">Vibration RMS, motor power, bearing temperature, delivered airflow</span></div>
+        <div class="blk"><span class="k">Decide</span><span class="v">Estimate remaining useful life; choose a derate level and a service date</span></div>
+        <div class="blk"><span class="k">Act</span><span class="v">Cap fan speed; schedule maintenance; alert the operator</span></div>
+        <div class="blk"><span class="k">Physics</span><span class="v">Wear accelerates with speed and load; derating slows wear but cuts airflow, so CO₂ rises</span></div>
+      </div>
+      <div class="feedback"><span>Derating changes both the wear rate and the air quality it was protecting</span></div>
+    </div>
+
+    <div class="detail">
+      <div>
+        <h4>Why the loop is real</h4>
+        <p>Most predictive-maintenance projects are open-loop classifiers with a dashboard. This one closes because the action — derating — feeds back into the degradation process <em>and</em> into the comfort loop it was meant to serve. That conflict is the project.</p>
+      </div>
+      <div>
+        <h4>Be honest about the model</h4>
+        <p>You are inventing the degradation physics; there is no bearing in BuildSim. Say so in the report, state the wear law you chose and its parameters, and be clear that the evaluation measures your <em>detector against your own generator</em>. The guide asks for exactly this kind of honesty, and stating the limitation costs less than being asked about it in the oral.</p>
+        <span class="eq">wear ← wear + k·(rpm/rpm_max)^3·Δt;  vibration = f(wear) + noise</span>
+      </div>
+      <div>
+        <h4>Evaluation &amp; breaking point</h4>
+        <p>Lead time before simulated failure; false alarms per year; life extension in hours per comfort-minute sacrificed — a ratio no other idea on this sheet produces.</p>
+        <p>Breaking point: raise sensor noise until lead time collapses below the spare-parts lead time, which is when the whole strategy stops being worth anything.</p>
+        <div class="api"><span>/api/sensors/{id}/value</span><span>/api/actuators/{id}/state</span><span>/api/equipment</span><span>/api/alerts</span></div>
+      </div>
+    </div>
+
+    <div class="oral"><span class="q">Oral question</span><p>You built the failure model and the detector. What does your ROC curve actually prove about a real fan?</p></div>
+  </article>
+
+  <!-- ================= A-11 ================= -->
+  <article class="sheet" id="a11">
+    <div class="sheet-head">
+      <span class="sheetno">A-11</span>
+      <div class="sheet-title">
+        <h3>Outdoor-air damper: particulates against CO₂</h3>
+        <p class="thesis">One actuator, two objectives that pull in opposite directions. Open the damper and CO₂ falls but wildfire smoke comes in; close it and the air gets clean but stale.</p>
+      </div>
+      <div class="chips"><span class="chip good">best value for effort</span><span class="chip good">a Pareto plot of your own</span></div>
+    </div>
+
+    <div class="loop">
+      <div class="loop-label">Control loop</div>
+      <div class="blocks">
+        <div class="blk"><span class="k">Sense</span><span class="v">Indoor PM2.5 and CO₂, outdoor PM2.5 from a replayed dataset, occupancy</span></div>
+        <div class="blk"><span class="k">Decide</span><span class="v">Outdoor-air fraction and filter/recirculation mode, under a hard CO₂ ceiling</span></div>
+        <div class="blk"><span class="k">Act</span><span class="v">Damper position 0–100 %, fan speed</span></div>
+        <div class="blk"><span class="k">Physics</span><span class="v">Two mass balances sharing one flow term — the coupling that creates the conflict</span></div>
+      </div>
+      <div class="feedback"><span>Every damper move helps one pollutant and hurts the other</span></div>
+    </div>
+
+    <div class="detail">
+      <div>
+        <h4>Why this is the sharpest small idea</h4>
+        <p>Two coupled equations, one shared control input:</p>
+        <span class="eq">V·dC/dt  = n·G + Q_oa·(C_out − C)</span>
+        <span class="eq">V·dPM/dt = Q_oa·(1−η)·PM_out − (Q_oa + Q_filter·η)·PM</span>
+        <p>The same <code>Q_oa</code> appears with opposite sign in the two objectives. That single fact gives you a constrained trade-off, a Pareto front, a hard safety constraint (CO₂ ≤ 1500 ppm always wins) and an argument about which objective is negotiable — all from about eighty lines of simulator.</p>
+      </div>
+      <div>
+        <h4>Decision route</h4>
+        <p>Baseline: fixed outdoor-air fraction, the way most real buildings run. Contender: a weighted-objective controller with the CO₂ ceiling as a hard constraint, plus filter-mode switching. Sweep the weight to produce the Pareto front — that figure alone answers the report's demand for measured trade-offs.</p>
+        <p>Outdoor data can be replayed from a public air-quality series with a wildfire episode in it, which satisfies the hybrid simulation route the proposal guide suggests.</p>
+      </div>
+      <div>
+        <h4>Evaluation &amp; breaking point</h4>
+        <p>Cumulative PM exposure in µg·h per occupant; CO₂ exceedance minutes; fan energy. All three against the fixed-fraction baseline on identical episodes.</p>
+        <p>Breaking point: raise outdoor PM until no damper position satisfies both constraints — and then explain which one you sacrifice and why. That moment is the most interesting sentence you can put in a final report.</p>
+        <div class="api"><span>/api/sensors/{id}/value</span><span>/api/actuators/{id}/state</span><span>/api/room-layers</span><span>/api/effects</span><span>/api/alerts</span></div>
+      </div>
+    </div>
+
+    <div class="oral"><span class="q">Oral question</span><p>Outdoor PM is 300 µg/m³ and the room has twelve people in it. What does your controller do, and which requirement did you decide to break?</p></div>
+  </article>
+
+  <!-- ================= A-12 ================= -->
+  <article class="sheet" id="a12">
+    <div class="sheet-head">
+      <span class="sheetno">A-12</span>
+      <div class="sheet-title">
+        <h3>Self-tuning optimal-start heating</h3>
+        <p class="thesis">At −20 °C outside, how early must heating start so the room is at 21 °C exactly when the first person arrives? Learn the answer from yesterday's mistake.</p>
+      </div>
+      <div class="chips"><span class="chip good">smallest defensible project</span><span class="chip good">learning that earns its place</span><span class="chip">quiet demo</span></div>
+    </div>
+
+    <div class="loop">
+      <div class="loop-label">Control loop</div>
+      <div class="blocks">
+        <div class="blk"><span class="k">Sense</span><span class="v">Zone temperature overnight, outdoor temperature, first-arrival time</span></div>
+        <div class="blk"><span class="k">Decide</span><span class="v">Preheat lead time from the current temperature gap and outdoor conditions</span></div>
+        <div class="blk"><span class="k">Act</span><span class="v">Start heating at the computed hour; hold setback until then</span></div>
+        <div class="blk"><span class="k">Physics</span><span class="v">RC warm-up from setback with envelope loss and heater capacity limits</span></div>
+      </div>
+      <div class="feedback"><span>Yesterday's arrival-time error retrains today's lead time</span></div>
+    </div>
+
+    <div class="detail">
+      <div>
+        <h4>Why the learning is honest here</h4>
+        <p>Classic optimal start is a two-parameter regression: lead time against temperature gap and outdoor temperature. It <em>learns online from its own error</em>, which is a genuine adaptive loop, tiny to implement, and impossible to hand-wave — you can derive it on the whiteboard in the oral.</p>
+        <p>It also has the honest property that a fixed two-hour start is a strong baseline. If your learner only beats it by four minutes and 3 % of energy, that is a finding worth reporting, and the course guide says so explicitly.</p>
+      </div>
+      <div>
+        <h4>Where the difficulty lives</h4>
+        <p>Not in the model but in the data: arrival times are noisy, some days nobody comes, and a cold snap moves the whole relationship. Drift handling, outlier rejection and a sane cold-start prior are the real engineering, and they map straight onto the course's data-quality requirement.</p>
+      </div>
+      <div>
+        <h4>Evaluation &amp; breaking point</h4>
+        <p>Arrival-time error in minutes across 30 simulated days; overshoot in degree-minutes; kWh against the fixed-start baseline; convergence rate after a step change in outdoor conditions.</p>
+        <p>Breaking point: drop the outdoor temperature until the heater saturates and no lead time is sufficient — the point where the controller must instead report that it cannot meet the target, which is a behaviour worth building.</p>
+        <div class="api"><span>/api/sensors/{id}/value</span><span>/api/actuators/{id}/state</span><span>/api/room-layers</span></div>
+      </div>
+    </div>
+
+    <div class="oral"><span class="q">Oral question</span><p>Your model has two coefficients. Derive them, then tell me what happens on the first cold day of a winter it has never seen.</p></div>
+  </article>
+
+  </div>
+</section>
+
+<section id="more">
+  <div class="sechead"><span class="num">04</span><h2>Ten more, added under a deadline</h2></div>
+  <p class="lede">
+    A second series, chosen to be <em>different control problems</em> rather than different sensors —
+    congestion, scheduling under a hard cap, estimation, commitment, and learning from people.
+    Same six gates. Same sheet format. Scored on the same scale.
+  </p>
+
+  <div class="rec" style="margin-bottom:30px">
+    <div class="rec-head">
+      <h3>If you are submitting in three hours</h3>
+      <p class="thesis">Do not re-open the choice. Pick from these three, or keep the graft from section 02 — all four are proposal-ready without another decision.</p>
+    </div>
+    <div class="rec-body">
+      <div>
+        <h4>Smallest sharp idea</h4>
+        <p><b>B-20 — virtual occupancy sensor.</b> One equation, run backwards. You delete a sensor, infer its value from CO₂, control on the estimate, and grade yourself against the simulator's ground truth. It fits on one page and it is the most genuinely <em>edge-intelligence</em> idea on either series.</p>
+      </div>
+      <div>
+        <h4>Most interesting to defend</h4>
+        <p><b>B-19 — exposure-risk ventilation</b> replaces a proxy (CO₂) with the thing you actually care about, and drags in a privacy argument the data-engineering note rewards. <b>B-17</b> is close behind: learning comfort from complaints is a censored-feedback problem, and saying that out loud reads as maturity.</p>
+      </div>
+      <div>
+        <h4>Fastest to a running loop</h4>
+        <p><b>B-14</b> and <b>B-21</b> are two evenings of simulator each and both are unmistakably Luleå. If your risk today is <em>shipping anything at all</em>, one of those is the safe answer, and the proposal explicitly says the design will change later.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="tablewrap" style="margin-bottom:30px">
+  <table>
+    <thead>
+      <tr>
+        <th style="min-width:230px">Idea</th>
+        <th>Loop strength</th>
+        <th>Visual demo</th>
+        <th>Architecture depth</th>
+        <th>AI fit</th>
+        <th>Oral defensibility</th>
+        <th>Effort</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="name"><span class="id">B-13</span><a href="#b13">Corridor &amp; stairwell congestion</a></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+        <td><span class="bars cost"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+      </tr>
+      <tr>
+        <td class="name"><span class="id">B-14</span><a href="#b14">Freeze protection under a power cap</a></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></td>
+        <td><span class="bars cost"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span></td>
+      </tr>
+      <tr>
+        <td class="name"><span class="id">B-15</span><a href="#b15">Legionella risk vs. energy</a></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></td>
+        <td><span class="bars cost"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span></td>
+      </tr>
+      <tr>
+        <td class="name"><span class="id">B-16</span><a href="#b16">Elevator destination dispatch</a></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+        <td><span class="bars cost"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+      </tr>
+      <tr>
+        <td class="name"><span class="id">B-17</span><a href="#b17">Comfort learned from occupant votes</a></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+        <td><span class="bars cost"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></td>
+      </tr>
+      <tr>
+        <td class="name"><span class="id">B-18</span><a href="#b18">EV charging with deadlines and PV</a></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+        <td><span class="bars cost"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></td>
+      </tr>
+      <tr class="pick">
+        <td class="name"><span class="id">B-19</span><a href="#b19">Exposure-risk-driven ventilation</a></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+        <td><span class="bars cost"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></td>
+      </tr>
+      <tr class="pick">
+        <td class="name"><span class="id">B-20</span><a href="#b20">Virtual occupancy sensor from CO₂</a></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></td>
+        <td><span class="bars cost"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span></td>
+      </tr>
+      <tr>
+        <td class="name"><span class="id">B-21</span><a href="#b21">Entrance draft defence</a></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></td>
+        <td><span class="bars cost"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span></td>
+      </tr>
+      <tr>
+        <td class="name"><span class="id">B-22</span><a href="#b22">Demand-response commitment</a></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></td>
+        <td><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></td>
+        <td><span class="bars cost"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="sheets">
+
+  <!-- ================= B-13 ================= -->
+  <article class="sheet" id="b13">
+    <div class="sheet-head">
+      <span class="sheetno">B-13</span>
+      <div class="sheet-title">
+        <h3>Corridor and stairwell congestion control</h3>
+        <p class="thesis">At noon the same three staircases take everybody. Route people around the jam without creating the next one.</p>
+      </div>
+      <div class="chips"><span class="chip good">uses all three floors</span><span class="chip">oscillation is the subject</span></div>
+    </div>
+
+    <div class="loop">
+      <div class="loop-label">Control loop</div>
+      <div class="blocks">
+        <div class="blk"><span class="k">Sense</span><span class="v">Occupant counts per corridor segment and stair, queue lengths at stair heads</span></div>
+        <div class="blk"><span class="k">Decide</span><span class="v">Route assignment and release staggering; when to open an overflow stairwell</span></div>
+        <div class="blk"><span class="k">Act</span><span class="v">Per-occupant route, guidance messages, door unlock on the overflow route</span></div>
+        <div class="blk"><span class="k">Physics</span><span class="v">Crowd density sets walking speed; stairs have a hard capacity in persons per metre per second</span></div>
+      </div>
+      <div class="feedback"><span>Rerouting changes density, which changes speed, which changes the next route</span></div>
+    </div>
+
+    <div class="detail">
+      <div>
+        <h4>Physical model</h4>
+        <p>The pedestrian fundamental diagram is enough, and it is citable:</p>
+        <span class="eq">v = v_free·(1 − ρ/ρ_max),  flow = ρ·v</span>
+        <p>with v_free ≈ 1.34 m/s on the flat and roughly half that on stairs. Segment lengths come straight out of BuildSim's walkable graph — 2 643 nodes and 2 706 edges across three floors, with 32 cross-floor links, so the topology is given to you.</p>
+      </div>
+      <div>
+        <h4>Decision route &amp; the trap</h4>
+        <p>Shortest path is the baseline. The contender is congestion-aware assignment on time-dependent edge costs. The trap is famous and you should build it deliberately: reroute everyone away from a jam and they all take the same alternative, which jams, and the system flip-flops.</p>
+        <p>Damping, staggered release, or assigning only a fraction of occupants each tick fixes it. Demonstrating the oscillation and then killing it is a far better report than never showing it.</p>
+      </div>
+      <div>
+        <h4>Evaluation &amp; breaking point</h4>
+        <p>p95 travel time, peak density against Fruin level-of-service bands, an oscillation index (route changes per occupant per minute), and stair utilisation balance.</p>
+        <p>Breaking point: raise simultaneous movers until either density saturates a stair or assignment latency exceeds the tick. BuildSim caps snapshots at 2 000 entities, which bounds the experiment for you.</p>
+        <div class="api"><span>/api/entities</span><span>/api/graph/route</span><span>/api/sessions/{id}/route</span><span>/api/doors</span><span>/api/room-layers</span><span>/api/alerts</span></div>
+      </div>
+    </div>
+
+    <div class="oral"><span class="q">Oral question</span><p>Your router sends everyone down the same alternative corridor. What stops that, and what did you measure to prove it stopped?</p></div>
+  </article>
+
+  <!-- ================= B-14 ================= -->
+  <article class="sheet" id="b14">
+    <div class="sheet-head">
+      <span class="sheetno">B-14</span>
+      <div class="sheet-title">
+        <h3>Freeze protection and heat-trace scheduling under a power cap</h3>
+        <p class="thesis">Minus twenty-seven outside. Every perimeter circuit wants power, the cap allows a third of them, and a pipe that freezes is not a comfort complaint — it is a burst.</p>
+      </div>
+      <div class="chips"><span class="chip good">two evenings of simulator</span><span class="chip good">hard safety constraint</span></div>
+    </div>
+
+    <div class="loop">
+      <div class="loop-label">Control loop</div>
+      <div class="blocks">
+        <div class="blk"><span class="k">Sense</span><span class="v">Perimeter pipe temperatures, outdoor temperature and wind, circuit power draw</span></div>
+        <div class="blk"><span class="k">Decide</span><span class="v">Which circuits are energised this interval, ranked by time-to-freeze against the cap</span></div>
+        <div class="blk"><span class="k">Act</span><span class="v">Heat-trace circuit duty cycle, zone by zone</span></div>
+        <div class="blk"><span class="k">Physics</span><span class="v">Pipe cools toward outdoor temperature at a wind-dependent rate; trace power warms it</span></div>
+      </div>
+      <div class="feedback"><span>Warming a circuit lowers its priority, so the schedule rotates on its own</span></div>
+    </div>
+
+    <div class="detail">
+      <div>
+        <h4>Physical model</h4>
+        <span class="eq">C·dT/dt = (T_out − T)/R(wind) + P_trace</span>
+        <p>Wind speed shrinks R, which is what makes a windy −15 °C worse than a still −25 °C — a genuinely counter-intuitive result you can produce and explain. Occupancy matters through internal gains on the warm side of the wall, so the building's own schedule shows up in the margins.</p>
+      </div>
+      <div>
+        <h4>Decision route</h4>
+        <p>Least-margin-first: compute each circuit's time to reach 0 °C and power the ones closest to it, up to the cap. Baseline: naive thermostat per circuit, which trips the cap and is exactly what real buildings do badly. The safety constraint is absolute — no circuit crosses zero — so this is a scheduling problem with an inviolable deadline, which is a clean thing to reason about aloud.</p>
+      </div>
+      <div>
+        <h4>Evaluation &amp; breaking point</h4>
+        <p>Minutes below 0 °C anywhere (must be zero), peak kW against the cap, total kWh, and how often the cap forced a deferral.</p>
+        <p>Breaking point: lower the outdoor temperature until no schedule keeps every circuit above zero — then state which circuit you sacrifice and on what authority. That sentence is worth more than the plot.</p>
+        <div class="api"><span>/api/sensors/{id}/value</span><span>/api/actuators/{id}/state</span><span>/api/room-layers</span><span>/api/alerts</span></div>
+      </div>
+    </div>
+
+    <div class="oral"><span class="q">Oral question</span><p>Two circuits will freeze in the same interval and you can power one. What is your rule, and where in the system is it written down?</p></div>
+  </article>
+
+  <!-- ================= B-15 ================= -->
+  <article class="sheet" id="b15">
+    <div class="sheet-head">
+      <span class="sheetno">B-15</span>
+      <div class="sheet-title">
+        <h3>Legionella risk: stagnation against energy</h3>
+        <p class="thesis">Hot water standing unused in the taps of a half-empty building is a health hazard. Flushing and heating it costs water and power. Decide which outlet has waited too long.</p>
+      </div>
+      <div class="chips"><span class="chip good">nobody will pick it</span><span class="chip">regulated domain</span></div>
+    </div>
+
+    <div class="loop">
+      <div class="loop-label">Control loop</div>
+      <div class="blocks">
+        <div class="blk"><span class="k">Sense</span><span class="v">Time since last draw per outlet, outlet and tank temperature, room occupancy as a use proxy</span></div>
+        <div class="blk"><span class="k">Decide</span><span class="v">Which outlets to flush now; when to run a thermal disinfection cycle</span></div>
+        <div class="blk"><span class="k">Act</span><span class="v">Automatic flush valves, tank setpoint, circulation pump</span></div>
+        <div class="blk"><span class="k">Physics</span><span class="v">Stagnant water drifts into the 20–45 °C growth band and risk accumulates; a flush resets it, heat suppresses it</span></div>
+      </div>
+      <div class="feedback"><span>The flush resets exactly the state that demanded it</span></div>
+    </div>
+
+    <div class="detail">
+      <div>
+        <h4>Physical model</h4>
+        <span class="eq">risk ← risk + g(T)·Δt,  g maximal in 20–45 °C, ≈0 above 55 °C;  draw or flush → risk ← 0</span>
+        <p>Natural draws come from the occupancy schedule, so a room nobody uses this week is precisely the one at risk — the coupling is the whole point, and it is real: this is why building codes mandate periodic flushing at all.</p>
+      </div>
+      <div>
+        <h4>Decision route</h4>
+        <p>Fixed weekly flush is the baseline and it is what the regulations assume. The contender ranks outlets by accumulated risk and flushes only what needs it, within a water and energy budget. The comparison is honest and quantitative: same safety outcome, how much less water and heat?</p>
+        <p>The interesting failure is a low-occupancy week where risk-ranked flushing needs more water than the fixed schedule ever did.</p>
+      </div>
+      <div>
+        <h4>Evaluation &amp; breaking point</h4>
+        <p>Maximum outlet risk-hours, litres flushed, kWh for disinfection cycles, and outlets exceeding the risk threshold at any point (target zero).</p>
+        <p>Breaking point: reduce building occupancy until no schedule holds every outlet under threshold within the water budget — the empty-building failure mode, which is exactly when it matters.</p>
+        <div class="api"><span>/api/sensors/{id}/value</span><span>/api/actuators/{id}/state</span><span>/api/room-layers</span><span>/api/alerts</span></div>
+      </div>
+    </div>
+
+    <div class="oral"><span class="q">Oral question</span><p>Why is a weekly flush not good enough, and what does your risk index physically represent?</p></div>
+  </article>
+
+  <!-- ================= B-16 ================= -->
+  <article class="sheet" id="b16">
+    <div class="sheet-head">
+      <span class="sheetno">B-16</span>
+      <div class="sheet-title">
+        <h3>Elevator destination dispatch</h3>
+        <p class="thesis">Three floors, a bank of cars, a lunch rush. Which car takes which call — and does the answer change once you know where people are going?</p>
+      </div>
+      <div class="chips"><span class="chip good">queue instability plot</span><span class="chip">classic CPS scheduling</span></div>
+    </div>
+
+    <div class="loop">
+      <div class="loop-label">Control loop</div>
+      <div class="blocks">
+        <div class="blk"><span class="k">Sense</span><span class="v">Hall calls with destination, car position and load, queue length per landing</span></div>
+        <div class="blk"><span class="k">Decide</span><span class="v">Assign each call to a car; group compatible destinations</span></div>
+        <div class="blk"><span class="k">Act</span><span class="v">Car movement commands and door dwell time</span></div>
+        <div class="blk"><span class="k">Physics</span><span class="v">Jerk-limited car kinematics, door cycles, boarding time proportional to passengers</span></div>
+      </div>
+      <div class="feedback"><span>Dispatch shapes the queues that generate the next round of calls</span></div>
+    </div>
+
+    <div class="detail">
+      <div>
+        <h4>Physical model</h4>
+        <p>Trapezoidal velocity profile per car with fixed door open, dwell and close times, plus a boarding time of roughly a second per passenger. Calls arrive from the same occupancy schedule every idea here shares, concentrated into the lunch and departure peaks.</p>
+        <p>This is a queueing system, so it has a genuine stability threshold rather than a soft degradation — above a certain arrival rate the lobby queue grows without bound no matter how good your dispatcher is.</p>
+      </div>
+      <div>
+        <h4>Decision route</h4>
+        <p>Nearest-car is the baseline and it is what cheap controllers do. The contender minimises an estimated waiting cost across all cars, optionally grouping passengers by destination. Both are explainable at a whiteboard; neither needs machine learning, and saying that out loud is the right answer to <em>"where is the AI?"</em></p>
+      </div>
+      <div>
+        <h4>Evaluation &amp; breaking point</h4>
+        <p>p95 wait time, journey time, calls answered beyond 60 s, car starts as an energy proxy, and load factor.</p>
+        <p>Breaking point: raise the arrival rate until the queue is unstable, and show that the threshold is a property of car capacity and round-trip time, not of your code. That distinction is the whole grade-5 argument in one plot.</p>
+        <div class="api"><span>/api/entities</span><span>/api/graph</span><span>/api/highlights</span><span>/api/alerts</span></div>
+      </div>
+    </div>
+
+    <div class="oral"><span class="q">Oral question</span><p>At what arrival rate does your lobby queue stop being stable, and why is that a property of the building rather than of your implementation?</p></div>
+  </article>
+
+  <!-- ================= B-17 ================= -->
+  <article class="sheet" id="b17">
+    <div class="sheet-head">
+      <span class="sheetno">B-17</span>
+      <div class="sheet-title">
+        <h3>Comfort learned from occupant votes</h3>
+        <p class="thesis">The thermostat says 21 °C and people are still cold. Learn each zone's real comfort offset from complaints that are sparse, biased, and only ever arrive when someone is unhappy.</p>
+      </div>
+      <div class="chips"><span class="chip good">censored feedback</span><span class="chip good">human in the loop</span></div>
+    </div>
+
+    <div class="loop">
+      <div class="loop-label">Control loop</div>
+      <div class="blocks">
+        <div class="blk"><span class="k">Sense</span><span class="v">Zone temperature, humidity, occupancy, and too-warm / too-cold votes</span></div>
+        <div class="blk"><span class="k">Decide</span><span class="v">Per-zone comfort offset; the setpoint minimising predicted dissatisfaction within an energy budget</span></div>
+        <div class="blk"><span class="k">Act</span><span class="v">Zone setpoint, inside a bounded safety band</span></div>
+        <div class="blk"><span class="k">Physics</span><span class="v">RC thermal model, plus a comfort model that generates votes with noise and bias</span></div>
+      </div>
+      <div class="feedback"><span>The setpoint you choose determines which votes you are able to observe</span></div>
+    </div>
+
+    <div class="detail">
+      <div>
+        <h4>Why it is more interesting than it looks</h4>
+        <p>People vote only when annoyed, so your data is <em>censored</em>: you learn nothing about the states where everyone is content, and a naive estimator chases whichever complaint arrived last. That is a real statistical problem with a simple, explainable fix — bound the exploration range, weight votes by exposure time, and decay old evidence.</p>
+        <p>Simulate the occupants with a PMV/PPD comfort model plus a per-person offset and a complaint threshold, so you have ground truth to be graded against.</p>
+      </div>
+      <div>
+        <h4>Decision route</h4>
+        <p>Baseline: fixed 21 °C for everyone. Contender: online per-zone offset estimation with a hard band (say 20–24 °C) that the learner may never leave, which is your safety filter and the reason the learner can never make the building unsafe.</p>
+      </div>
+      <div>
+        <h4>Evaluation &amp; breaking point</h4>
+        <p>Predicted percentage dissatisfied, votes per occupant-day, kWh, and convergence time after a step change in the occupant population.</p>
+        <p>Breaking point: lower the vote rate until the estimate never converges, and report the minimum feedback rate the method needs. A learning system that states its own data requirement is a strong result.</p>
+        <div class="api"><span>/api/sensors/{id}/value</span><span>/api/actuators/{id}/state</span><span>/api/occupancy</span><span>/api/room-layers</span></div>
+      </div>
+    </div>
+
+    <div class="oral"><span class="q">Oral question</span><p>People only complain when they are unhappy. How does your estimator avoid being dragged around by the last person who spoke?</p></div>
+  </article>
+
+  <!-- ================= B-18 ================= -->
+  <article class="sheet" id="b18">
+    <div class="sheet-head">
+      <span class="sheetno">B-18</span>
+      <div class="sheet-title">
+        <h3>EV charging with deadlines, solar and one grid connection</h3>
+        <p class="thesis">Twelve cars, a connection that cannot serve them all, an array that only produces while the sun is up, and everyone wants a full battery by five.</p>
+      </div>
+      <div class="chips"><span class="chip good">fairness is explicit</span><span class="chip">deadline scheduling</span></div>
+    </div>
+
+    <div class="loop">
+      <div class="loop-label">Control loop</div>
+      <div class="blocks">
+        <div class="blk"><span class="k">Sense</span><span class="v">Per-car state of charge, plug-in and stated departure time, PV output, building base load</span></div>
+        <div class="blk"><span class="k">Decide</span><span class="v">Charging power per car this interval, under a hard connection cap</span></div>
+        <div class="blk"><span class="k">Act</span><span class="v">Charger current setpoints, 0 to 11 kW each</span></div>
+        <div class="blk"><span class="k">Physics</span><span class="v">Charge integrates into the battery; PV follows irradiance; base load follows occupancy</span></div>
+      </div>
+      <div class="feedback"><span>Charging now consumes the headroom that constrains the next interval</span></div>
+    </div>
+
+    <div class="detail">
+      <div>
+        <h4>Physical model</h4>
+        <span class="eq">SoC ← SoC + η·P·Δt/E_batt,  Σ P_cars + P_building ≤ P_cap</span>
+        <p>PV from a clear-sky curve for latitude 65.6° N scaled by a cloud process — which in a Luleå December means the array contributes almost nothing at exactly the hour everyone is charging, and that is a finding, not a flaw.</p>
+      </div>
+      <div>
+        <h4>Decision route</h4>
+        <p>First-come-first-served is the baseline and it is what most car parks actually do. The contender is earliest-deadline-first, or a small LP maximising PV self-consumption subject to deadlines and the cap.</p>
+        <p>The part worth defending is <b>fairness</b>: when not everyone can be served, the rule that decides who loses is a policy decision, not an optimisation detail. Write it down, name it in the report, and be ready to say who approved it.</p>
+      </div>
+      <div>
+        <h4>Evaluation &amp; breaking point</h4>
+        <p>Deadline misses, energy delivered from PV versus imported, peak import kW, and a fairness measure such as the worst-served car's final state of charge.</p>
+        <p>Breaking point: add cars until deadlines cannot all be met, then show how your rule degrades — gracefully across everyone, or by sacrificing a few completely.</p>
+        <div class="api"><span>/api/equipment</span><span>/api/sensors/{id}/value</span><span>/api/actuators/{id}/state</span><span>/api/room-layers</span><span>/api/alerts</span></div>
+      </div>
+    </div>
+
+    <div class="oral"><span class="q">Oral question</span><p>Two cars cannot both be full by five. Who loses, and is that decision in your code or in a policy a human approved?</p></div>
+  </article>
+
+  <!-- ================= B-19 ================= -->
+  <article class="sheet" id="b19">
+    <div class="sheet-head">
+      <span class="sheetno">B-19</span>
+      <div class="sheet-title">
+        <h3>Ventilation driven by exposure risk, not by CO₂</h3>
+        <p class="thesis">CO₂ is a proxy. Control the thing you actually care about — the chance that sharing a room with someone makes you ill — and accept that the model has a parameter you cannot measure.</p>
+      </div>
+      <div class="chips"><span class="chip good">privacy argument included</span><span class="chip warn">unmeasurable parameter</span></div>
+    </div>
+
+    <div class="loop">
+      <div class="loop-label">Control loop</div>
+      <div class="blocks">
+        <div class="blk"><span class="k">Sense</span><span class="v">Occupancy and dwell time per zone, CO₂ as a rebreathed-air proxy, current ventilation rate</span></div>
+        <div class="blk"><span class="k">Decide</span><span class="v">Ventilation per zone to hold cumulative exposure under a target; relocate or cap occupancy when it cannot</span></div>
+        <div class="blk"><span class="k">Act</span><span class="v">Ventilation rate, occupancy cap, room reassignment</span></div>
+        <div class="blk"><span class="k">Physics</span><span class="v">Quanta concentration mass balance; infection probability integrates over dwell time</span></div>
+      </div>
+      <div class="feedback"><span>More air dilutes the quanta, which lowers the risk that demanded the air</span></div>
+    </div>
+
+    <div class="detail">
+      <div>
+        <h4>Physical model</h4>
+        <p>Wells–Riley, the standard airborne-transmission model, sitting directly on top of the same mass balance every ventilation idea here uses:</p>
+        <span class="eq">P_infection = 1 − exp(−I·q·p·t / Q)</span>
+        <p>One infector, a quanta generation rate q, breathing rate p, exposure time t and ventilation Q. The quanta rate is the honest weakness — it is not measurable and the literature spans orders of magnitude. Saying so, and showing how your control decisions change across that range, is a sensitivity analysis and a grade-5 move.</p>
+      </div>
+      <div>
+        <h4>Data engineering, and the privacy argument</h4>
+        <p>This is the one idea here that handles genuinely sensitive data: who was in a room, with whom, for how long. The data note rewards a deliberate policy — aggregate to counts at ingestion, retain identities only as long as the exposure window needs them, and state the retention period as a requirement with a test.</p>
+        <p>A system that deletes what it does not need, and can prove it, is a stronger answer than one that stores everything and mentions GDPR once.</p>
+      </div>
+      <div>
+        <h4>Evaluation &amp; breaking point</h4>
+        <p>Peak and mean infection probability per occupant-day, exposure-minutes above target, fan energy, and all of it against a plain CO₂-threshold baseline on identical occupancy traces.</p>
+        <p>Breaking point: raise occupant density until no achievable ventilation rate meets the risk target — the point where the answer stops being an actuator command and becomes <em>fewer people in the room</em>.</p>
+        <div class="api"><span>/api/occupancy</span><span>/api/sensors/{id}/value</span><span>/api/actuators/{id}/state</span><span>/api/room-layers</span><span>/api/alerts</span></div>
+      </div>
+    </div>
+
+    <div class="oral"><span class="q">Oral question</span><p>Your model contains a quanta rate you cannot measure. What does the risk number you show the operator actually mean?</p></div>
+  </article>
+
+  <!-- ================= B-20 ================= -->
+  <article class="sheet" id="b20">
+    <div class="sheet-head">
+      <span class="sheetno">B-20</span>
+      <div class="sheet-title">
+        <h3>The virtual occupancy sensor</h3>
+        <p class="thesis">Delete the occupancy sensor. Infer how many people are in the room by running the CO₂ mass balance backwards, control on the estimate, and let the simulator grade you against the truth.</p>
+      </div>
+      <div class="chips"><span class="chip good">smallest sharp idea</span><span class="chip good">ground truth for free</span></div>
+    </div>
+
+    <div class="loop">
+      <div class="loop-label">Control loop</div>
+      <div class="blocks">
+        <div class="blk"><span class="k">Sense</span><span class="v">CO₂ only — plus the ventilation rate, which you know because you commanded it</span></div>
+        <div class="blk"><span class="k">Decide</span><span class="v">Estimate occupancy from the rate of change, then run ordinary demand-controlled ventilation on the estimate</span></div>
+        <div class="blk"><span class="k">Act</span><span class="v">Ventilation rate — which is also an input to your own estimator</span></div>
+        <div class="blk"><span class="k">Physics</span><span class="v">The same CO₂ mass balance, with people as the hidden state</span></div>
+      </div>
+      <div class="feedback"><span>Your control action changes how observable the state you are estimating is</span></div>
+    </div>
+
+    <div class="detail">
+      <div>
+        <h4>The idea in one equation</h4>
+        <p>Every other ventilation project uses the mass balance forwards. Run it backwards and it becomes a sensor:</p>
+        <span class="eq">n̂ = [ V·dC/dt − Q·(C_out − C) ] / G</span>
+        <p>You have deleted a device and replaced it with arithmetic — which is precisely what <em>embedded intelligence at the edge</em> means, and it costs a weekend rather than six.</p>
+      </div>
+      <div>
+        <h4>The subtlety worth the whole grade</h4>
+        <p>Your own actuator sits inside your estimator. Ventilate hard and CO₂ flattens out, so the signal carrying the occupancy information disappears — you have made the state less observable by controlling it well. Ventilate gently and the estimate sharpens while the air gets worse.</p>
+        <p>That is a real dual-control trade-off, and there is an elegant answer available: inject a small deliberate excitation into the ventilation rate to keep the estimate alive, and measure what it costs in comfort. Very few student projects contain a sentence that good.</p>
+      </div>
+      <div>
+        <h4>Evaluation &amp; breaking point</h4>
+        <p>RMSE of estimated against true occupancy — the simulator knows the truth, so this is exact — plus detection delay on arrival and departure, and closed-loop performance using the estimate versus using ground truth. That last comparison isolates exactly how much the estimator cost you.</p>
+        <p>Breaking point: raise sensor noise and lengthen the sampling period until the estimate is worthless; report the noise floor and sampling rate the method requires.</p>
+        <div class="api"><span>/api/sensors/{id}/value</span><span>/api/actuators/{id}/state</span><span>/api/room-layers</span><span>/api/occupancy</span></div>
+      </div>
+    </div>
+
+    <div class="oral"><span class="q">Oral question</span><p>Your controller's own actions change what your estimator can see. Is that a problem, and what did you do about it?</p></div>
+  </article>
+
+  <!-- ================= B-21 ================= -->
+  <article class="sheet" id="b21">
+    <div class="sheet-head">
+      <span class="sheetno">B-21</span>
+      <div class="sheet-title">
+        <h3>Entrance draft defence</h3>
+        <p class="thesis">Every time the main door opens at −25 °C the lobby loses heat. Sixty people arrive in twenty minutes. Defend the lobby without heating the street.</p>
+      </div>
+      <div class="chips"><span class="chip good">two evenings of simulator</span><span class="chip good">forecasting earns its keep</span></div>
+    </div>
+
+    <div class="loop">
+      <div class="loop-label">Control loop</div>
+      <div class="blocks">
+        <div class="blk"><span class="k">Sense</span><span class="v">Door open and close events, lobby and vestibule temperature, outdoor temperature and wind, arrival rate</span></div>
+        <div class="blk"><span class="k">Decide</span><span class="v">When to pre-heat ahead of an arrival wave; which curtain and heater stages to run</span></div>
+        <div class="blk"><span class="k">Act</span><span class="v">Air-curtain fan stage, lobby heater, door dwell time</span></div>
+        <div class="blk"><span class="k">Physics</span><span class="v">Infiltration per opening driven by stack effect and wind; lobby heat balance</span></div>
+      </div>
+      <div class="feedback"><span>Heating the lobby raises ΔT, which increases the infiltration it was fighting</span></div>
+    </div>
+
+    <div class="detail">
+      <div>
+        <h4>Physical model</h4>
+        <span class="eq">Q_infil ∝ A_door·√(ΔT·h)·t_open,  C·dT/dt = P_heat − Q_infil·c·ΔT − UA·ΔT</span>
+        <p>The lovely part is the sign: a warmer lobby drives <em>more</em> infiltration through the stack effect, so heating harder has diminishing returns and there is an optimum. Door events come from the arrival schedule, so the disturbance is genuinely occupancy-driven.</p>
+      </div>
+      <div>
+        <h4>Decision route</h4>
+        <p>Reactive thermostat is the baseline. The contender pre-heats using the arrival forecast — the weekday schedule plus the observed door-event rate in the last ten minutes — which is forecasting that pays for itself in a way most student forecasting does not.</p>
+        <p>Then measure the honest cost: energy spent pre-heating for waves that never arrived.</p>
+      </div>
+      <div>
+        <h4>Evaluation &amp; breaking point</h4>
+        <p>Lobby minutes below 18 °C, kWh, curtain runtime, and wasted pre-heat events per week — against the reactive baseline on identical arrival traces.</p>
+        <p>Breaking point: increase the arrival rate, or drop the outdoor temperature, until the lobby cannot be held at all. Then say what the building should do instead, which is an architectural answer — a vestibule — not a control one.</p>
+        <div class="api"><span>/api/doors</span><span>/api/sensors/{id}/value</span><span>/api/actuators/{id}/state</span><span>/api/entities</span><span>/api/room-layers</span></div>
+      </div>
+    </div>
+
+    <div class="oral"><span class="q">Oral question</span><p>You pre-heated for a wave that never came. How often did that happen, and what did it cost?</p></div>
+  </article>
+
+  <!-- ================= B-22 ================= -->
+  <article class="sheet" id="b22">
+    <div class="sheet-head">
+      <span class="sheetno">B-22</span>
+      <div class="sheet-title">
+        <h3>Demand-response commitment</h3>
+        <p class="thesis">Promise the grid 40 kW less between five and six. To be paid you must prove you delivered it — against a baseline you predicted yourself, and are not allowed to game.</p>
+      </div>
+      <div class="chips"><span class="chip good">rebound is the trap</span><span class="chip warn">forecast under uncertainty</span></div>
+    </div>
+
+    <div class="loop">
+      <div class="loop-label">Control loop</div>
+      <div class="blocks">
+        <div class="blk"><span class="k">Sense</span><span class="v">Whole-building power, zone temperatures, weather forecast, occupancy schedule</span></div>
+        <div class="blk"><span class="k">Decide</span><span class="v">Forecast the counterfactual baseline, size the commitment, then choose what to shed and when to pre-heat</span></div>
+        <div class="blk"><span class="k">Act</span><span class="v">Zone setpoints and a shed list for the event window</span></div>
+        <div class="blk"><span class="k">Physics</span><span class="v">RC thermal model with comfort as a hard constraint; shedding drains stored heat</span></div>
+      </div>
+      <div class="feedback"><span>Heat borrowed during the event is repaid immediately afterwards as a rebound peak</span></div>
+    </div>
+
+    <div class="detail">
+      <div>
+        <h4>Why the rebound makes it real</h4>
+        <p>Shedding for an hour cools the building, and every zone then heats simultaneously the moment the event ends. That synchronised recovery — the payback peak — is often <em>larger</em> than the reduction you were paid for, and it is a documented failure of real demand-response programmes.</p>
+        <p>Building it, measuring it, and then staggering the recovery to kill it is a complete engineering narrative: promise, deliver, discover the cost, fix it, quantify the fix.</p>
+      </div>
+      <div>
+        <h4>Decision route</h4>
+        <p>Two decisions, not one. First a <b>forecast</b>: the counterfactual baseline, from day-matching or a small regression on weather and schedule. Then a <b>commitment</b> under uncertainty: bid conservatively and earn little, bid aggressively and risk a penalty. Sizing that bid from your own forecast error distribution is the interesting part, and it is the only idea on either series where the system must reason about how wrong it might be.</p>
+      </div>
+      <div>
+        <h4>Evaluation &amp; breaking point</h4>
+        <p>Delivered versus committed kW, penalty incurred, rebound peak in the half hour after the event, comfort-minutes violated, and net revenue against a do-nothing baseline.</p>
+        <p>Breaking point: increase the commitment until either comfort or delivery fails — and report which fails first, because that tells you what the building's flexibility is actually worth.</p>
+        <div class="api"><span>/api/sensors/{id}/value</span><span>/api/actuators/{id}/state</span><span>/api/room-layers</span><span>/api/alerts</span></div>
+      </div>
+    </div>
+
+    <div class="oral"><span class="q">Oral question</span><p>You over-delivered by six kilowatts, and then the building drew twenty extra at five past six. Did you actually help the grid?</p></div>
+  </article>
+
+  </div>
+</section>
+
+<section id="rejected">
+  <div class="sechead"><span class="num">05</span><h2>Considered and rejected</h2></div>
+  <p class="lede">
+    Recording what you rejected, and why, is worth marks in its own right — the guide asks for
+    named alternatives with trade-offs. These are yours, already written.
+  </p>
+  <div class="rejected">
+    <div><strong>Digital-twin dashboard</strong><span>Beautiful, and open-loop. Nothing it displays changes what the building does, so it fails the course's central requirement before the design starts.</span></div>
+    <div><strong>Reinforcement learning for HVAC</strong><span>Unsafe exploration on a system with comfort constraints, plus a training budget you do not have. If it appears at all, it belongs behind a shield, as A-03's safety controller shows.</span></div>
+    <div><strong>Federated learning across floors</strong><span>There is no privacy boundary between three floors of one building, so the premise that motivates the technique does not exist here. Interesting elsewhere.</span></div>
+    <div><strong>Blockchain-backed access audit</strong><span>An append-only log with hash chaining gives you the tamper-evidence requirement in fifty lines. The distributed-consensus part solves a problem the system does not have.</span></div>
+    <div><strong>Occupant-counting from camera feeds</strong><span>BuildSim has no cameras, so you would be simulating the input to your own vision model — measuring a detector against your own generator, with none of A-10's honest framing.</span></div>
+    <div><strong>Full multi-floor everything</strong><span>2 643 walkable nodes across three floors is a fine scaling <em>experiment</em>, and a terrible starting scope. Start on one floor and let the breaking-point study expand it.</span></div>
+  </div>
+</section>
+
+<section id="deciding">
+  <div class="sechead"><span class="num">06</span><h2>Getting to a proposal by 10 September</h2></div>
+  <p class="lede">
+    Nine days. The proposal is a green light, not a design — the guide is explicit that C4 diagrams,
+    requirement tables and interfaces are <em>not</em> expected yet.
+  </p>
+  <ol class="steps">
+    <li><p><b>Pick on the loop, not the topic.</b> Whichever sheet you choose, the first sentence of the proposal should be the feedback path: <em>this actuator changes this quantity, which changes this reading.</em> If you cannot write that sentence, the idea is not ready.</p></li>
+    <li><p><b>Prototype the riskiest thing first — this week.</b> The proposal asks for it directly. For A-03 that is smoke spread invalidating a route mid-evacuation; for A-11 it is the two-mass-balance simulator; for A-01 it is the door gateway against a collection-replacing endpoint.</p></li>
+    <li><p><b>Write the seven answers, not an essay.</b> Use case and why · scenario · what gets built · the autonomous part · unknowns and risks · simulation approach · first step and plan. Each sheet above is already ordered to fill those in.</p></li>
+    <li><p><b>Put the repository link at the top.</b> It is a stated requirement of the proposal, and the repository is already in place.</p></li>
+    <li><p><b>Name your unknowns honestly.</b> The guide says honesty about risk <em>is</em> the point of that section. A proposal that admits the smoke model may be too crude reads stronger than one that claims it will be fine.</p></li>
+  </ol>
+</section>
+
+<section id="a06-deep">
+  <div class="sechead"><span class="num">07</span><h2>A-06 in depth: where exactly is the loop?</h2></div>
+  <p class="lede">
+    A fair question, because A-06 hides its feedback better than the others. There are
+    <b>two</b> loops stacked on top of each other, and the interesting engineering is entirely
+    in the second one — including one failure mode where the outer loop erases the evidence
+    the inner loop needed.
+  </p>
+
+  <div class="rec" style="margin-bottom:34px">
+    <div class="rec-head">
+      <h3>The one-paragraph answer</h3>
+      <p class="thesis">If you only remember one thing before the oral, remember this shape.</p>
+    </div>
+    <div class="rec-body">
+      <div>
+        <h4>Inner loop — control</h4>
+        <p>CO₂ rises because people are in the room. The controller opens the damper. Airflow dilutes the CO₂. The next reading is lower. <b>Actuator changes physics changes sensor</b> — the course's required loop, unchanged from any ventilation project.</p>
+      </div>
+      <div>
+        <h4>Outer loop — supervision</h4>
+        <p>A model predicts what CO₂ <em>should</em> have done given the command that was sent. The gap between predicted and measured is the <b>residual</b>. A persistent residual means the command did not have its expected physical effect, so the supervisor changes <em>how the controller controls</em> — different strategy, different zone, work order raised.</p>
+      </div>
+      <div>
+        <h4>Why that is still feedback</h4>
+        <p>Because the supervisor's action changes the commands, the commands change the physics, and the physics changes the residual the supervisor reads next. It closes through the building exactly like the inner loop does — just one level up, and on a slower clock.</p>
+      </div>
+    </div>
+  </div>
+
+  <h3 class="figtitle">Figure 1 — the two loops, and where the fault is injected</h3>
+  <p class="figlede">
+    Read the inner ring first: controller, damper, room, sensor, back to controller. Then the outer ring:
+    the same command also goes to the observer, which predicts the outcome and compares. The fault sits
+    <em>between the command and its physical effect</em>, which is precisely why the controller cannot see it —
+    the controller only ever sees CO₂, and high CO₂ looks the same whether the damper is stuck or the room is simply full.
+  </p>
+  <div class="figure">
+<pre class="mermaid">
+%%{init: {'theme':'base','themeVariables':{'background':'#0E1F2E','primaryColor':'#1B4A72','primaryTextColor':'#EAF2F9','primaryBorderColor':'#5B93C0','lineColor':'#88B4D6','secondaryColor':'#27503C','tertiaryColor':'#4A3A1C','textColor':'#D6E4F0','fontFamily':'IBM Plex Mono, monospace','fontSize':'13px','edgeLabelBackground':'#0E1F2E','clusterBkg':'#122A3D','clusterBorder':'#2E5675'}}}%%
+flowchart LR
+  subgraph INNER["INNER LOOP - control, 1 Hz"]
+    direction LR
+    CTRL["DCV controller<br/>wants CO2 below 800 ppm"]
+    ACT["Damper actuator<br/>commanded position u"]
+    ROOM["Room physics<br/>mass balance"]
+    SENS["CO2 sensor<br/>measured C"]
+  end
+  FAULT{{"FAULT INJECTED HERE<br/>stuck damper / blocked filter"}}
+  subgraph OUTER["OUTER LOOP - supervision, minutes"]
+    direction LR
+    OBS["Observer<br/>predicts C from u"]
+    RES["Residual<br/>r = C_measured - C_predicted"]
+    DIAG["Diagnosis<br/>classify the signature"]
+    SUP["Supervisor<br/>change strategy, raise work order"]
+  end
+
+  CTRL -- "command u" --> ACT
+  ACT --> FAULT
+  FAULT -- "actual airflow Q" --> ROOM
+  ROOM -- "true CO2" --> SENS
+  SENS -- "measured C" --> CTRL
+
+  CTRL -. "same command u" .-> OBS
+  SENS -. "measured C" .-> RES
+  OBS -- "predicted C" --> RES
+  RES --> DIAG
+  DIAG --> SUP
+  SUP -- "retune / degrade / compensate" --> CTRL
+</pre>
+  </div>
+  <p class="figcap">
+    The dotted arrows are what makes this project different from A-02. Without them you have a thermostat.
+    With them you have a system that knows when its own commands stopped working.
+  </p>
+
+  <h3 class="figtitle">Figure 2 — what a residual actually is</h3>
+  <p class="figlede">
+    The single idea the whole project rests on. You command a known ventilation step and you already
+    know, from the mass balance, what CO₂ must do next. If it does something else, the fault is between
+    your command and the air.
+  </p>
+  <div class="detail" style="border:1px solid var(--rule); margin-bottom:10px">
+    <div>
+      <h4>The model, forwards</h4>
+      <span class="eq">V·dC/dt = n·G + Q·(C_out − C)</span>
+      <p>Volume V, occupants n, CO₂ generation G per person, commanded airflow Q. Integrate one step ahead and you have the prediction:</p>
+      <span class="eq">Ĉ(t+Δ) = C_out + (C(t) − C_out)·e^(−QΔ/V) + n·G/Q·(1 − e^(−QΔ/V))</span>
+    </div>
+    <div>
+      <h4>The residual</h4>
+      <span class="eq">r(t) = C_measured(t) − Ĉ(t)</span>
+      <p>Noise makes single residuals meaningless, so accumulate them. A one-sided CUSUM detects a persistent small bias far faster than a threshold on r alone:</p>
+      <span class="eq">S(t) = max(0, S(t−1) + r(t) − k),  alarm when S &gt; h</span>
+      <p>k is the slack you allow normal noise; h trades detection delay against false alarms. Those two numbers <em>are</em> your tuning story.</p>
+    </div>
+    <div>
+      <h4>Why n is the honest problem</h4>
+      <p>The prediction needs occupancy, and if you had a perfect occupancy sensor you would not need this. Three ways out, all defensible: take n from the simulator's schedule and admit it; estimate n by inverting the same balance (that is <a href="#b20">B-20</a>, and the two ideas compose beautifully); or use only <b>step responses</b>, where the decay <em>shape</em> depends on Q and V but barely on n.</p>
+      <p>The third is the strongest answer and the cheapest to build.</p>
+    </div>
+  </div>
+
+  <h3 class="figtitle">Figure 3 — the signature of a stuck damper, sketched</h3>
+  <p class="figlede">
+    An illustration of the expected shape, not measured data. At minute 20 the controller commands
+    a large ventilation step. The dashed line is what the observer predicts. The solid line is what a
+    stuck damper actually produces. The shaded gap is the residual; the strip below is the CUSUM
+    accumulating it until it crosses the alarm limit.
+  </p>
+  <div class="figure">
+    <svg viewBox="0 0 740 310" width="100%" role="img" aria-label="Predicted CO2 decay versus measured CO2 with a stuck damper, and the CUSUM statistic crossing its alarm threshold">
+      <defs>
+        <pattern id="hatch" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+          <line x1="0" y1="0" x2="0" y2="6" stroke="#C6743F" stroke-width="2" opacity="0.55"/>
+        </pattern>
+      </defs>
+      <!-- axes -->
+      <line x1="60" y1="30" x2="60" y2="205" stroke="#5B7C95" stroke-width="1"/>
+      <line x1="60" y1="205" x2="700" y2="205" stroke="#5B7C95" stroke-width="1"/>
+      <text x="60" y="22" fill="#9FBBD2" font-family="IBM Plex Mono, monospace" font-size="11">CO₂ ppm</text>
+      <text x="16" y="71" fill="#7E9CB4" font-family="IBM Plex Mono, monospace" font-size="10">1200</text>
+      <text x="22" y="200" fill="#7E9CB4" font-family="IBM Plex Mono, monospace" font-size="10">600</text>
+      <!-- step marker -->
+      <line x1="267" y1="30" x2="267" y2="205" stroke="#E0A75A" stroke-width="1" stroke-dasharray="4 3"/>
+      <text x="273" y="42" fill="#E0A75A" font-family="IBM Plex Mono, monospace" font-size="10.5">t = 20 min: damper commanded 20% → 90%</text>
+      <!-- residual area -->
+      <path d="M267,67 L308,120 L349,151 L391,170 L432,180 L473,187 L556,193 L680,198 L680,49 L577,53 L473,57 L370,62 L267,67 Z"
+            fill="url(#hatch)" stroke="none"/>
+      <!-- predicted -->
+      <polyline points="60,67 267,67 308,120 349,151 391,170 432,180 473,187 556,193 680,198"
+                fill="none" stroke="#7FD1A8" stroke-width="2" stroke-dasharray="6 4"/>
+      <!-- measured -->
+      <polyline points="60,67 267,67 370,62 473,57 577,53 680,49"
+                fill="none" stroke="#8FC4EC" stroke-width="2.2"/>
+      <!-- labels -->
+      <text x="492" y="182" fill="#7FD1A8" font-family="IBM Plex Mono, monospace" font-size="11">predicted Ĉ  (what the command should do)</text>
+      <text x="430" y="40" fill="#8FC4EC" font-family="IBM Plex Mono, monospace" font-size="11">measured C  (damper never moved)</text>
+      <text x="360" y="120" fill="#E39A6A" font-family="IBM Plex Mono, monospace" font-size="11">residual r</text>
+      <!-- cusum strip -->
+      <line x1="60" y1="295" x2="700" y2="295" stroke="#5B7C95" stroke-width="1"/>
+      <line x1="60" y1="252" x2="700" y2="252" stroke="#D4736A" stroke-width="1" stroke-dasharray="5 4"/>
+      <text x="620" y="248" fill="#D4736A" font-family="IBM Plex Mono, monospace" font-size="10">alarm limit h</text>
+      <polyline points="60,293 267,293 300,284 330,270 360,256 392,245 440,236 520,229 600,225 680,222"
+                fill="none" stroke="#D4A0F0" stroke-width="2"/>
+      <circle cx="378" cy="252" r="4" fill="#D4736A"/>
+      <text x="388" y="286" fill="#D4A0F0" font-family="IBM Plex Mono, monospace" font-size="10.5">CUSUM S(t)</text>
+      <text x="388" y="270" fill="#EFC7C2" font-family="IBM Plex Mono, monospace" font-size="10.5">detected, ≈12 min after the step</text>
+      <text x="60" y="308" fill="#7E9CB4" font-family="IBM Plex Mono, monospace" font-size="10">0 min</text>
+      <text x="660" y="308" fill="#7E9CB4" font-family="IBM Plex Mono, monospace" font-size="10">60 min</text>
+    </svg>
+  </div>
+  <p class="figcap">
+    Detection delay is the distance between the dashed vertical line and the red dot. Shrinking it means
+    lowering <span class="mono">h</span>, which buys false alarms. That trade is the experiment section of your report.
+  </p>
+
+  <h3 class="figtitle">Figure 4 — one fault, end to end</h3>
+  <p class="figlede">
+    A C4 dynamic view of the stuck damper from the moment the room fills to the moment a work order exists.
+    Note who talks to whom: the monitor never commands anything, and the supervisor never touches BuildSim.
+    Both facts are architecture decisions you should be able to justify.
+  </p>
+  <div class="figure">
+<pre class="mermaid">
+%%{init: {'theme':'base','themeVariables':{'background':'#0E1F2E','primaryColor':'#1B4A72','primaryTextColor':'#EAF2F9','primaryBorderColor':'#5B93C0','lineColor':'#88B4D6','textColor':'#D6E4F0','fontFamily':'IBM Plex Mono, monospace','fontSize':'12.5px','noteBkgColor':'#2A4257','noteTextColor':'#E6EEF5','noteBorderColor':'#5B93C0','actorBkg':'#1B4A72','actorTextColor':'#EAF2F9','actorBorder':'#5B93C0','actorLineColor':'#88B4D6','signalColor':'#B8D3E8','signalTextColor':'#D6E4F0','labelBoxBkgColor':'#1B4A72','labelTextColor':'#EAF2F9','loopTextColor':'#D6E4F0','sequenceNumberColor':'#0E1F2E'}}}%%
+sequenceDiagram
+  autonumber
+  participant SIM as physics-simulator
+  participant BS as BuildSim
+  participant SEN as co2-sensor
+  participant BR as MQTT broker
+  participant CTL as dcv-controller
+  participant ACT as damper-actuator
+  participant MON as fault-monitor
+  participant SUP as supervisor
+
+  Note over SIM,BS: room A109 fills, 14 people, CO2 climbing
+  SIM->>BS: PUT /api/sensors/A109-co2/value
+  SEN->>BS: GET /api/sensors/A109-co2
+  SEN->>BR: publish sensors/A109/co2 = 1180 ppm
+  BR->>CTL: deliver reading
+  BR->>MON: deliver reading
+
+  CTL->>ACT: command damper 90 percent
+  CTL->>BR: publish commands/A109/damper = 90
+  BR->>MON: deliver command
+  Note over MON: observer predicts CO2 must fall to 730 ppm in 12 min
+
+  ACT->>BS: PUT /api/actuators/A109-damper/state
+  Note over BS,SIM: damper is stuck at 20 percent, so actual airflow does not change
+  SIM->>BS: PUT sensor value, CO2 still 1205 ppm
+
+  loop every minute for 12 minutes
+    MON->>MON: r = measured - predicted, accumulate CUSUM
+  end
+
+  MON->>MON: S exceeds h, latch SUSPECT
+  MON->>BR: publish faults/A109 = candidate, evidence attached
+  Note over MON: fan power unchanged, so not a blocked filter<br/>night decay was correct, so not sensor drift
+  MON->>BR: publish faults/A109 = confirmed STUCK_DAMPER
+
+  BR->>SUP: deliver confirmed fault
+  SUP->>CTL: degrade A109, compensate from neighbouring zone
+  SUP->>BS: PUT /api/alerts, maintenance work order
+  Note over SUP,CTL: the fault stays latched even though CO2 now recovers
+</pre>
+  </div>
+  <p class="figcap">
+    Steps 20 and 21 are the whole grade. The monitor publishes evidence, the supervisor decides,
+    and the controller is told what to do — three responsibilities, three containers, one direction of authority.
+  </p>
+
+  <h3 class="figtitle">Figure 5 — telling the three faults apart</h3>
+  <p class="figlede">
+    This is the question the examiner will ask, so make it a diagram you can redraw from memory.
+    A single residual proves only that <em>something</em> is wrong. Three cheap extra observations
+    separate the causes, and none of them needs machine learning.
+  </p>
+  <div class="figure">
+<pre class="mermaid">
+%%{init: {'theme':'base','themeVariables':{'background':'#0E1F2E','primaryColor':'#1B4A72','primaryTextColor':'#EAF2F9','primaryBorderColor':'#5B93C0','lineColor':'#88B4D6','textColor':'#D6E4F0','fontFamily':'IBM Plex Mono, monospace','fontSize':'12.5px','edgeLabelBackground':'#0E1F2E'}}}%%
+flowchart TD
+  A["Residual persists<br/>CUSUM above h"] --> B{"Did the overnight decay<br/>reach outdoor CO2?"}
+  B -- "no, floor is 520 ppm<br/>with nobody in the building" --> S1["SENSOR DRIFT<br/>shape correct, offset wrong<br/>action: recalibrate, distrust value"]
+  B -- "yes, sensor floor is correct" --> C{"Did fan power change<br/>when the command changed?"}
+  C -- "no, power flat" --> S2["STUCK DAMPER<br/>command has no effect at all<br/>action: degrade zone, work order"]
+  C -- "yes, power rose<br/>more than expected" --> D{"Is the decay slower<br/>than predicted, but present?"}
+  D -- "yes" --> S3["BLOCKED FILTER<br/>more power for less flow<br/>action: derate, schedule service"]
+  D -- "no" --> S4["UNCLASSIFIED<br/>alert a human, do not act<br/>this branch must exist"]
+</pre>
+  </div>
+  <p class="figcap">
+    The overnight test is the cheapest idea in the project: with the building empty, CO₂ <em>must</em> decay
+    to outdoor level. If it does not, the sensor is lying. Occupancy — normally the disturbance — becomes
+    your calibration reference precisely because it goes to zero every night.
+  </p>
+
+  <h3 class="figtitle">Figure 6 — the monitor's state machine</h3>
+  <p class="figlede">
+    The report guide requires a state machine for one process whose lifecycle matters, and this is that
+    process. Every transition here is code you must write, including the ones nobody remembers:
+    stale data, and the recovery path after service.
+  </p>
+  <div class="figure">
+<pre class="mermaid">
+%%{init: {'theme':'base','themeVariables':{'background':'#0E1F2E','primaryColor':'#1B4A72','primaryTextColor':'#EAF2F9','primaryBorderColor':'#5B93C0','lineColor':'#88B4D6','textColor':'#D6E4F0','fontFamily':'IBM Plex Mono, monospace','fontSize':'12.5px','edgeLabelBackground':'#0E1F2E'}}}%%
+stateDiagram-v2
+  [*] --> Warmup
+  Warmup --> Healthy: model primed, 10 min of clean data
+  Healthy --> Suspect: CUSUM above h
+  Suspect --> Healthy: residual returns, CUSUM decays
+  Suspect --> Confirmed: signature classified
+  Confirmed --> Compensating: supervisor accepts the diagnosis
+  Compensating --> Serviced: maintenance clears the work order
+  Serviced --> Warmup: re-prime the model, never trust the old baseline
+
+  Healthy --> Blind: readings stale beyond 3 intervals
+  Suspect --> Blind: readings stale beyond 3 intervals
+  Blind --> Warmup: data returns
+  note right of Blind
+    stale data is NOT a fault
+    it is absence of evidence
+    the monitor must say so
+    and must not diagnose
+  end note
+  note right of Compensating
+    the fault stays latched
+    even after CO2 looks normal
+    see the masking trap below
+  end note
+</pre>
+  </div>
+
+  <div class="rec" style="margin:34px 0">
+    <div class="rec-head">
+      <h3>The masking trap — and why it is the best answer you can give</h3>
+      <p class="thesis">The outer loop can destroy the evidence the outer loop depends on. Build it, watch it happen, then fix it.</p>
+    </div>
+    <div class="rec-body">
+      <div>
+        <h4>What goes wrong</h4>
+        <p>The supervisor compensates for the stuck damper by boosting the neighbouring zone. CO₂ in A109 comes back down. The residual shrinks. A naive monitor now sees healthy behaviour and clears the fault — so the supervisor stops compensating, CO₂ rises again, and the system oscillates between broken and fine while the damper is still stuck.</p>
+      </div>
+      <div>
+        <h4>Why it happens</h4>
+        <p>Because the residual is computed against the <em>outcome</em> rather than against the <em>commanded path</em>. Once compensation is active, the room is no longer being controlled by the thing you are testing, so the test is meaningless.</p>
+      </div>
+      <div>
+        <h4>The fix, in three parts</h4>
+        <p>Latch the diagnosis until a human clears it. Recompute the residual against the actual local command, not the zone outcome. And schedule a periodic <b>active probe</b> — briefly return the zone to local control, command a step, and confirm the fault is still there. That last one is deliberate excitation, the same idea that makes <a href="#b20">B-20</a> work.</p>
+      </div>
+    </div>
+  </div>
+
+  <h3 class="figtitle">Figure 7 — containers, one box per folder</h3>
+  <p class="figlede">
+    Eight processes. The report guide requires the container diagram to map one-to-one onto
+    <span class="mono">docker-compose.yml</span> <em>and</em> the repository folders, so this drawing is also your directory listing.
+  </p>
+  <div class="figure">
+<pre class="mermaid">
+%%{init: {'theme':'base','themeVariables':{'background':'#0E1F2E','primaryColor':'#1B4A72','primaryTextColor':'#EAF2F9','primaryBorderColor':'#5B93C0','lineColor':'#88B4D6','textColor':'#D6E4F0','fontFamily':'IBM Plex Mono, monospace','fontSize':'12.5px','edgeLabelBackground':'#0E1F2E','clusterBkg':'#122A3D','clusterBorder':'#2E5675'}}}%%
+flowchart TB
+  BS["BuildSim<br/>external, state only<br/>REST + WebSocket"]
+  subgraph SYS["our system"]
+    direction TB
+    SIM["physics-simulator<br/>CO2 mass balance,<br/>occupancy, fault injection"]
+    SEN["co2-sensor x N<br/>read and publish"]
+    ACT["damper-actuator x N<br/>validate and apply"]
+    BR["mqtt-broker<br/>mosquitto"]
+    CTL["dcv-controller<br/>the inner loop"]
+    MON["fault-monitor<br/>observer, CUSUM, classifier"]
+    SUP["supervisor<br/>strategy and work orders"]
+    ST["store<br/>time series + decision journal"]
+    DASH["dashboard<br/>residuals, faults, state"]
+  end
+  SIM -- "REST write" --> BS
+  SEN -- "REST read" --> BS
+  ACT -- "REST write" --> BS
+  BS -- "REST read" --> SIM
+  SEN -- "publish" --> BR
+  BR -- "readings" --> CTL
+  BR -- "readings + commands" --> MON
+  CTL -- "commands" --> BR
+  BR -- "commands" --> ACT
+  MON -- "fault events" --> BR
+  BR -- "fault events" --> SUP
+  SUP -- "strategy change" --> CTL
+  BR -- "everything" --> ST
+  ST --> DASH
+  BS -. "WebSocket" .-> DASH
+</pre>
+  </div>
+  <p class="figcap">
+    Justify two merges you did <em>not</em> make: the monitor could live inside the controller, and the supervisor
+    could live inside the monitor. Keeping them apart means a crashing monitor cannot take ventilation down,
+    and a wrong diagnosis cannot command anything by itself. That is the fault-isolation argument the deployment
+    section asks for, and it is true rather than decorative.
+  </p>
+
+  <div class="detail" style="border:1px solid var(--rule); margin-top:34px">
+    <div>
+      <h4>Requirements this generates</h4>
+      <ul>
+        <li><b>R-1</b> When a damper fails to respond, the system shall confirm the fault within 15 min. <em>Verify:</em> injection test × 20 runs, report p95 delay.</li>
+        <li><b>R-2</b> While a fault is latched, the system shall keep the zone below 1000 ppm by compensation. <em>Verify:</em> scenario test.</li>
+        <li><b>R-3</b> The monitor shall raise no more than one false alarm per simulated week. <em>Verify:</em> 7-day fault-free replay.</li>
+        <li><b>R-4</b> While readings are stale, the monitor shall report unavailable and issue no diagnosis. <em>Verify:</em> kill the sensor container.</li>
+        <li><b>R-5</b> Every diagnosis shall be reconstructable from stored evidence. <em>Verify:</em> rebuild a random one from the journal.</li>
+      </ul>
+    </div>
+    <div>
+      <h4>Experiments, in build order</h4>
+      <ul>
+        <li>Detection delay against CUSUM limit <span class="mono">h</span> — the core trade-off curve</li>
+        <li>ROC over the three fault types, model-based versus a plain threshold baseline</li>
+        <li>Comfort held during a fault, with compensation versus without</li>
+        <li>Sensitivity: smallest damper deviation still detectable, as a function of sensor noise</li>
+        <li>Breaking point: zones per monitor until the residual computation misses its interval</li>
+      </ul>
+    </div>
+    <div>
+      <h4>Honest weaknesses to write down</h4>
+      <p>You built the fault model and the detector, so the ROC measures your detector against your own generator — say it plainly, as <a href="#a10">A-10</a> must too.</p>
+      <p>The observer needs occupancy, and every way of getting it is imperfect. The step-response method is the least bad and you should say why.</p>
+      <p>Three fault types is not a taxonomy. Real air handling fails in dozens of ways, several of which look identical to your three.</p>
+    </div>
+  </div>
+
+  <div class="oral" style="border:1px solid var(--rule); margin-top:26px">
+    <span class="q">Rehearse these</span>
+    <p>
+      Where is the feedback in a fault detector? · Why can the controller not see the fault itself? ·
+      What is a residual, and what does yours need that you cannot measure? · How do you separate a stuck damper
+      from a drifting sensor? · What happens when compensation hides the fault? · Why is the monitor a separate
+      process from the controller? · Your detector never fires during a fault-free week — is that good?
+    </p>
+  </div>
+</section>
+
+<footer>
+  <p>
+    Twenty-two loops, checked against <code>report_guide.tex</code>, <code>proposal_guide.tex</code>, the four course notes
+    and BuildSim's own API reference. Scores are judgement, not measurement — argue with them.
+  </p>
+</footer>
+
+</div>
+</body>
+</html>

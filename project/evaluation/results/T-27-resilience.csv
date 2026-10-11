@@ -1,0 +1,24 @@
+scenario,killed_component,observation,measured,required,verdict
+co2-sensor stops publishing,co2-sensor,rooms that could go blind at the kill,6 of 6 (latched: none),a latched room stays latched; R-4 is asserted over the rest,pass
+co2-sensor stops publishing,co2-sensor,cycles until every observable room is BLIND,4,<= 4 (three sample intervals plus one cycle),pass
+co2-sensor stops publishing,co2-sensor,rooms reporting unavailability,6,one per observable room,pass
+co2-sensor stops publishing,co2-sensor,fault events published while blind,0,0,pass
+co2-sensor stops publishing,co2-sensor,rooms the controller still trusts,0,0,pass
+co2-sensor stops publishing,co2-sensor,damper commands issued on stale data,0,0,pass
+co2-sensor stops publishing,co2-sensor,cycles to HEALTHY once readings return,3,<= 5 (BLIND to WARMUP to HEALTHY),pass
+fault-monitor stops cycling,fault-monitor,damper commands in the 4 h after the kill,119 (monitor alive: 119),"> 0, ventilation continues",pass
+fault-monitor stops cycling,fault-monitor,occupied minutes at or below 1000 ppm across the six rooms,1.000 (monitor alive: 1.000),not worse than the monitor-alive arm: losing diagnosis must not cost ventilation,pass
+fault-monitor stops cycling,fault-monitor,residuals published after the kill,0,"0, diagnosis is what was lost",pass
+supervisor dead before the diagnosis,supervisor,state of A125A after 12 h,COMPENSATING,latched (CONFIRMED or COMPENSATING),pass
+supervisor dead before the diagnosis,supervisor,compensation plan in force,none,none,pass
+supervisor dead before the diagnosis,supervisor,strategy and fan-speed commands published,"0 strategies, 0 fan commands",0 and 0,pass
+supervisor dead before the diagnosis,supervisor,work orders raised,0,0,pass
+supervisor dead before the diagnosis,supervisor,rooms taken off NORMAL control,0,"0, nothing degraded anything",pass
+supervisor dead while compensating,supervisor,minutes from onset to a plan covering A125A,154,"> 0, a plan was reached before the kill",pass
+supervisor dead while compensating,supervisor,"the plan in force at the kill, and what it bought","trim 1.00, fan 0.70, gain 1.00 (moves no air into it)",a plan,pass
+supervisor dead while compensating,supervisor,fan speed 4 h after the kill,0.70 (at the kill: 0.70),unchanged: the plant holds what it was last told,pass
+supervisor dead while compensating,supervisor,new strategy or fan commands after the kill,0 and 0,0 and 0,pass
+supervisor dead while compensating,supervisor,state of A125A after the kill,CONFIRMED,still latched,pass
+damper-actuator stops applying commands,damper-actuator,commands issued in the 3 h after the kill,161,"> 0, the controller keeps trying",pass
+damper-actuator stops applying commands,damper-actuator,confirmations raised,3,"> 0, an unapplied command is indetectable from a frozen damper",pass
+damper-actuator stops applying commands,damper-actuator,what the monitor called it,A125A=STUCK_DAMPER A125=UNCLASSIFIED A116A=STUCK_DAMPER,STUCK_DAMPER per affected room; the monitor cannot name the actuator,pass
