@@ -1,0 +1,45 @@
+# P4, the broker transport — where MQTT could become something else — and N3, EventCodec, the
+# wire format, which is an interface and is not a seam. Drawn together because N3 is the exact
+# qualification P4 needs: the port lets the transport be replaced, and the codec is what travels
+# through it unchanged whatever the transport is.
+#
+# P4 TIER 2: clean against the core (no control or entity class names MqttAdapter), conditional
+# in the plumbing — six composition-root edits with no factory, the JSON wire format travels
+# with it, and a replacement must preserve the asymmetry that a dead publisher goes SILENT
+# rather than blocking, which is what lets the monitor reach BLIND instead of hanging.
+#
+# N3: EventCodec declares static methods only and has no abstract method, so there is nothing
+# behind it to substitute. A non-Java publisher at K1 must match the JSON this one file writes,
+# and there is no schema registry, no IDL and no version field. Argued in seams.md § P4, § N3.
+#
+# VERIFIED AGAINST: EventPublisherPort.java:10 with :5-9; ReadingStreamPort.java:10 with :6-9;
+# MqttAdapter.java:27, :38-65, :50-53, :93-121, :124-139; the six roots Co2SensorMain.java:57,
+# DamperActuatorMain.java:53, DamperControlJob.java:90, MonitorRuntime.java:104,
+# SupervisorConfiguration.java:54, DashboardRuntime.java:151; RecordingPublisher.java:24;
+# CountingPublisher.java:13; EventCodec.java:41; DomainEvent.java:9-11.
+direction: down
+
+classes: {
+  contract: { shape: hexagon; style.stroke-width: 2 }
+  port: { shape: parallelogram; style.stroke-width: 2 }
+  t1: { style.stroke: "#1e8449"; style.fill: "#eafaf1" }
+  t2: { style.stroke: "#b9770e"; style.fill: "#fdf3e3" }
+  t3: { style.stroke: "#c0392b"; style.fill: "#fdedec"; style.stroke-dash: 4 }
+  box: { style.stroke-width: 2 }
+  doc: { shape: document; style.fill: transparent }
+}
+
+clients: "six clients\nco2-sensor … dashboard" { class: box }
+alt: "RecordingPublisher · CountingPublisher\nthe harness, no broker" { class: box }
+p4: "P4 · EventPublisherPort\n+ ReadingStreamPort" { class: [port; t2] }
+mq: "mosquitto\nQoS 1 · clean session" { shape: queue; class: box }
+codec: "EventCodec\ntype · ts · zone · ppm · quality" { class: box }
+n3: "N3 · EventCodec\nTIER 3 — not a seam" { class: t3 }
+md: "three conditions · evidence\nseams.md § P4, § N3" { class: doc }
+
+clients -> p4: "publish · subscribe"
+alt -> p4
+p4 -> mq: "MqttAdapter, over Paho"
+p4 -> codec
+codec -> n3
+n3 -> md

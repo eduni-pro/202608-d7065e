@@ -1,0 +1,110 @@
+\section{Test plan}\label{sec:10}
+
+\subsection{How the system is verified}\label{sec:10.1}
+
+Three levels, and the traceability rule that every test names the requirement ID it verifies.
+Unit tests live beside the code and cover the \textbf{control} and \textbf{entity} layers, which is
+where the business logic is: the value objects and the monitor state machine in \texttt{shared/},
+the mass balance, the flow split and fault injection in \texttt{physics-simulator/}, the hysteresis
+loop in \texttt{dcv-controller/}, the CUSUM and the classifier in \texttt{fault-monitor/}, the
+compensation solver in \texttt{supervisor/}, the view projection in \texttt{dashboard/}. Because
+the clock is a port, the \textbf{offline harness} in \texttt{evaluation/} drives the
+same control and diagnosis classes the containers run against a simulated clock, so a seven-day
+replay and twenty injection runs cost seconds rather than days. End-to-end and fault-injection runs
+go through the real compose stack.
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.07}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.33}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.14}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.46}}@{}}
+\toprule
+\textbf{ID} & \textbf{Test or experiment} & \textbf{Requirement} & \textbf{Has it run, and what came
+out} \\
+\midrule
+\endhead
+T-24 & Detection delay swept against the CUSUM limit $h$, ≥ 20 runs per point & R-1 &
+\textbf{Run}, 200 runs over six arms: stepped p95 6 min, 20/20; closed-loop p95 257 min, 15/20 \\
+T-25 & Model-based monitor against a plain residual threshold, identical seeds, 7-day fault-free
+replay & R-1, R-3 & \textbf{Run}: at equal alarm volume the monitor detects 0.75 against the
+threshold's 0.15 at a median delay of 74 min against 312; R-3 \textbf{fails} at 0.55 confirmed cases
+per fault-free week, worst week 6 \\
+T-15 & Confusion matrix over the four injected faults on a fixed seed, plus a no-fault arm &
+R-1, R-3 & \textbf{Run}, 218 runs: \texttt{STUCK\_DAMPER} named correctly,
+\texttt{BLOCKED\_FILTER} → \texttt{UNCLASSIFIED} 11/11, \texttt{SENSOR\_DRIFT} \textbf{never
+emitted}; \textbf{one of four mechanisms classified} \\
+T-26 & Comfort during a latched fault, with and without compensation & R-2 & \textbf{Run}: 5 of 5
+seeds on the drawn weekday, \textbf{0 of 5 at design occupancy}, no-fault reference 5 of 5
+throughout \\
+T-27 & Kill each container in turn & R-4 & \textbf{Run} in-JVM, 23 of 23 assertions:
+\texttt{BLIND} in 4 cycles, 0 fault events, 0 commands on stale data; container kills \textbf{now
+also run} against \texttt{docker compose}, five of six rooms \texttt{BLIND} in 12 s \\
+T-20 & Rebuild a random diagnosis from the journal & R-5 & \textbf{Demonstrated live} in the
+recorded demo run: HTTP 200, 77\,248 bytes, \textbf{445 events}; the id was the one that run produced
+rather than a drawn one. \textbf{And now tested} by eight integration tests on the real SQL \\
+T-28 & Scale zones per monitor to the breaking point & R-6 & \textbf{Run}: 25\,600 zones at a p95
+of about 6 s measured, $\approx$ 86\,000 \textbf{extrapolated},
+\texttt{AhuFlowModel.believedFlowTo} named \\
+T-34b & Room isolation: one injected fault per run, rotating the injected room over ≥ 3 rooms &
+R-7 & \textbf{Run}, both occupancy regimes, 540 observed rooms. Drawn weekday \textbf{0 of 270
+failed}; design occupancy \textbf{231 of 270 failed} \\
+T-29 & Optional learned one-class contender against the CUSUM on identical seeds & R-1, R-3 &
+\textbf{Run}: \textbf{dropped}. To match the monitor's 0.75 detection it costs about 20× the false
+alarms (11.25 against 0.55 per week) and 7× the delay (518 against 74 min) \\
+T-35 & Classify after a probe has been judged, or at confirmation? 176 paired runs on identical
+seeds & R-1 & \textbf{Run}: \textbf{not adopted}. Detection moves in 0 of 88 pairs and the settled
+classification is identical in all 88, because the judged step reads \texttt{MISSING} for every
+condition \\
+T-36 & One observation published on the real broker, consumed by the running
+\texttt{fault-monitor} and asserted in the real journal & R-5 & \textbf{Run}, 2 tests against the
+deployed stack: the row carries the published wattage, the publisher's instant and the monitor's
+own provenance; a reading for a room outside the zone set journals nothing. \textbf{Skips} with the
+reason when the stack is down \\
+T-37 & A latched diagnosis survives a \texttt{SIGKILL} and restart of its container & --- &
+\textbf{Run live on the demo profile}, transcript in
+\texttt{evaluation/\allowbreak results/\allowbreak T-37-\allowbreak restart-\allowbreak recovery.txt}. A115 confirmed \texttt{STUCK\_DAMPER};
+\texttt{docker kill} and restart; the case id and \texttt{confirmedAt} are \emph{identical}
+across the kill while \texttt{updatedAt} keeps advancing. A cold start would have minted both
+afresh. The damper pin and the believed fan speed come back with it \\
+\bottomrule
+\end{longtable}
+
+\textbf{Appendix \ref{sec:K}} carries the same eleven rows with the expected result each was written against
+and the evidence in full; §\ref{sec:11.2} and Appendix \ref{sec:F} report the experiments themselves.
+
+Four named unit tests are worth quoting, because they are what the strongest claims in this report
+actually rest on. Test names describe the behaviour and carry the requirement ID, so the
+traceability runs all the way into the suite:
+
+\begin{footnotesize}
+\begin{verbatim}
+shouldHoldEveryHealthyFlowExactlyWhileTheFanHasHeadroom_R7    zero healthy deviation,
+                                                              gain exactly 1/t
+shouldRestoreTheFrozenRoomToItsDesignFlowAtTheNormalFanSpeed_R2   59.7 -> 165.9 l/s
+shouldSpendExactlyTheStatedToleranceWhenTheFanIsAlreadyAtNominal_R7   the saturated fan
+shouldRefuseToCompensateADamperWithNoAirPath_R2Bound          no command at all
+\end{verbatim}
+\end{footnotesize}
+
+\subsection{The state of the suite, stated plainly}\label{sec:10.2}
+
+A full \texttt{mvn -o clean test} run on \factSuiteRunDate{} reports \textbf{BUILD SUCCESS over all
+\factReactorModules{} reactor modules: \factSuiteTests{} tests, 0 failures, 0 errors}.
+\textbf{The skip count is not a fixed property of the suite, and no skip is a gap}:
+\factGuardedTests{} tests assume something outside the JVM is reachable, the
+\factJournalTests{} journal tests that execute R-5's real SQL against a PostgreSQL (T-20), the
+\factPipelineTests{} pipeline tests that need the broker and a running \texttt{fault-monitor} as
+well (T-36), and the \factReconnectTests{} reconnect test that needs the broker, so they skip
+when nothing is up and run when the stack is. The run above was taken with the stack up, which is
+why it reports \textbf{0 skipped} rather than \factGuardedTests{}. Starting anything is
+deliberately not the default, so the suite stays runnable in seconds with nothing installed.
+
+What was the single largest gap in this project is closed: \texttt{evaluation/} holds its own sources
+(a \texttt{Main} and \textbf{\factExperiments{}} experiments), and a full run on OpenJDK 25.0.3 completes in
+\textbf{350 s} of wall clock, writing the nine result tables §\ref{sec:11.2} reports from. That run is also the
+evidence for §\ref{sec:13.9}'s determinism claim, and it is worth stating as a result: re-running the harness
+against the committed result files leaves \textbf{eight of the nine byte-identical}. The ninth is
+T-28, and it does not reproduce because it is the one experiment that measures \emph{wall clock}
+rather than simulated behaviour, so the exception is the experiment where bit-for-bit reproduction
+would mean the measurement was not being taken. \textbf{Appendix \ref{sec:K}} gives the per-module test counts,
+the per-experiment timings and both results in full.

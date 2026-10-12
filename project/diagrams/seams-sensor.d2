@@ -1,0 +1,45 @@
+# K1, the sensing seam — the cut for a real physical CO2 sensor — and N4, the data-quality
+# judgement, which looks like a seam and is not.
+#
+# Not at a port: BuildingStatePort is a Java interface on this classpath (seams-plant.d2) and a
+# device in a ceiling is not a Java class. At the wire, where readings/{zone}/co2 carries
+# ReadingObserved, because a contract seam does not care what the publisher is written in.
+#
+# K1 is TIER 2 and the replacement inherits three conditions: it must judge its own Quality, it
+# must publish fan power too, and it must stamp ObservedAt on the shared timeline. All three are
+# argued in seams.md § K1, with N1 for what a real room does to the model behind the monitor and
+# N2 for what the simulator is still for afterwards.
+#
+# VERIFIED AGAINST: Topics.java:12, :16; ReadingObserved.java:9; FanPowerObserved.java:12;
+# Co2Sampler.sampleOnce:80-89, :91-107, :110-127, published :137; SignalHistory.judge:159-169
+# with STALE_INTERVALS :49 and the exact-equality rationale :148-152; Quality.java:13;
+# Co2SensorMain.java:45-46, :58; SystemHarness.java:236.
+direction: right
+
+classes: {
+  contract: { shape: hexagon; style.stroke-width: 2 }
+  port: { shape: parallelogram; style.stroke-width: 2 }
+  t1: { style.stroke: "#1e8449"; style.fill: "#eafaf1" }
+  t2: { style.stroke: "#b9770e"; style.fill: "#fdf3e3" }
+  t3: { style.stroke: "#c0392b"; style.fill: "#fdedec"; style.stroke-dash: 4 }
+  box: { style.stroke-width: 2 }
+  doc: { shape: document; style.fill: transparent }
+}
+
+now: "co2-sensor\nreads BuildSim, judges, publishes" { class: box }
+alt: "a real sensor · any language\npublishes the same two topics" { class: box }
+k1: "K1 · sensing seam" { class: [contract; t2] }
+c1: "readings/{zone}/co2 -> ReadingObserved" { class: box }
+c2: "readings/{ahu}/fan-power -> FanPowerObserved" { class: box }
+cons: "dcv-controller · fault-monitor\nsupervisor · dashboard" { class: box }
+n4: "N4 · quality judgement\nTIER 3 — not a seam" { class: t3 }
+md: "three conditions · evidence\nseams.md § K1, § N4" { class: doc }
+
+now -> k1
+alt -> k1
+k1 -> c1
+k1 -> c2
+c1 -> cons
+c2 -> cons
+n4 -> k1
+k1 -> md

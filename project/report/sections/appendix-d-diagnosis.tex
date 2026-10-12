@@ -1,0 +1,200 @@
+\section{Diagnosis in detail: the plausibility ceiling, the confusion matrix, and the
+reordering experiment}\label{sec:D}
+
+\subsection{The monitor's eighteen named defaults, and what the plausibility ceiling costs}\label{sec:D.1}
+
+Every one of those numbers is a named field with a documented default rather than a literal buried
+in a branch, which is what let the register of §\ref{sec:11.6} name what each experiment must
+re-measure. Eighteen of \texttt{MonitorParameters}' 25 settings are the ones worth naming here:
+$k$ = 30 ppm, $h$ = 150 ppm, cycle 60 s, suspect fraction 0.6, confirm persistence 2 cycles,
+suspect-clear 3 cycles, warmup 3 cycles, stale 3 intervals, evaluation window 10 min, generation
+gain 0.3, anchor gain 0.3, minimum step 0.05, probe interval 30 min, probe step $+0.20$,
+common-mode 5 of 6, step-amplitude match 0.3, overnight tolerance 100 ppm over 24 h, integration
+step 1 s. A nineteenth deserves an argument rather than a line in a list: the plausibility ceiling
+runs at \textbf{1.25} times design occupancy, and 25 \% of headroom above design is a deliberately
+desensitising choice. It is now priced rather than asserted.
+
+\texttt{MonitorParameters.withOccupancyCeiling} lets T-24 sweep the headroom against a control arm
+with nothing injected, and the sweep settles what the setting costs: at a ceiling of 1.00 the
+closed-loop arm detects \textbf{16 of 20} at a median of 126 min from onset, but latches a room in
+\textbf{2 of 20} fault-free runs; at the shipped 1.25 it detects \textbf{15 of 20} at a median of
+180 min from onset and latches \textbf{0 of 20}. Those minutes are counted from fault onset so
+that the two ceilings are comparable, and they are not R-1's delay, which Section \ref{sec:11.2}'s
+closed-loop arm counts from the first ignored command and reports as a median of 74 min and a p95
+of \textbf{257 min}. Tightening the ceiling therefore buys one detection and
+some speed, and pays two false alarms for them, so the headroom is not a free lever between R-1
+and R-3. And below 1.00 it stops bounding occupancy at all.
+
+That control arm also retires a hypothesis this report would otherwise have left standing. A
+closed-loop detection rate quoted with nothing to compare it against is a count, not a
+measurement, and it was reasonable to suspect that the 15 detections were R-3's false-alarm
+mechanism landing on a room that happened to have a fault in it. The fault-free column is 0 of 20
+at the shipped headroom, so they are real detections. The arithmetic behind the sweep is the same
+one that limits R-1 in Section \ref{sec:13.4}: at A124's drawn occupancy of four to five of its eight desks
+the frozen damper is worth about \textbf{86 ppm} of steady state, against a ceiling sitting
+\textbf{270--600 ppm} above the reading.
+
+\subsection{What the classifier actually emits, measured (T-15)}\label{sec:D.2}
+
+The four-signal table of §\ref{sec:7.3} is what the tree is \emph{for}; this is what it
+does. \texttt{ConfusionMatrixExperiment} runs the pipeline once per
+injected condition (the four injectable faults plus a no-fault arm) on a fixed seed, and
+tabulates the condition injected against the classification emitted. The no-fault row is why T-15
+is traced to R-3 and not only to R-1. 218 runs in all: 110 at the headline magnitudes over two arms,
+plus a 54-run drift-rate sweep and a 54-run offset sweep. Each cell is the first confirmed case
+anywhere in the building, because that is the work order an operator actually receives. Note that
+the rows are \emph{mechanisms} and the columns are \emph{classifications}, and there are more of the
+first than the second: \texttt{SENSOR\_DRIFT} and \texttt{SENSOR\_OFFSET} are two ways for a sensor
+to be wrong and the monitor has one word for both.
+
+\begin{footnotesize}
+\begin{verbatim}
+seed 42, closed loop   STUCK_DAMPER  BLOCKED_FILTER  SENSOR_DRIFT  UNCLASSIFIED  never confirmed
+nothing injected        .             .               .             .             1
+STUCK_DAMPER            1             .               .             .             .
+BLOCKED_FILTER          .             .               .             1             .
+SENSOR_DRIFT            1             .               .             .             .
+SENSOR_OFFSET           1             .               .             .             .
+\end{verbatim}
+\end{footnotesize}
+
+Over seeds 42 and 1--10, eleven runs per row: nothing injected is silent in 10 of 11,
+\texttt{STUCK\_DAMPER} is named correctly in 8 of 11 and never confirms in 3, \texttt{BLOCKED\_FILTER}
+comes out \texttt{UNCLASSIFIED} in 11 of 11, \texttt{SENSOR\_DRIFT} comes out \texttt{STUCK\_DAMPER}
+in 11 of 11, and \texttt{SENSOR\_OFFSET} comes out \texttt{STUCK\_DAMPER} in 4, \texttt{UNCLASSIFIED}
+in 6 and never confirms in 1. \textbf{One of the four mechanisms is classified correctly}, and the
+report says so here rather than leaving the tree's branches to imply otherwise. Three things are off
+the diagonal and each has a mechanism:
+
+\begin{itemize}
+\item \textbf{\texttt{SENSOR\_DRIFT} is never emitted: 0 of 76 runs from a ramp and 0 of 76 from a
+step offset}, across rates 5--160 ppm/h and offsets 50--700 ppm, over both arms. The leaf asks for
+two things in the same instant: an informative overnight floor \emph{and} a step response that still
+matched. \textbf{The two injectable sensor mechanisms each supply one of them and never both.} A
+ramp outlives the 24 h overnight window (it keeps growing, so it is still confirmable after a day),
+and by then the offset it accumulated has inflated the quasi-steady generation estimate past the
+step amplitude the leaf needs. A step offset keeps its amplitude and never reaches the window: with
+the inner loop running it confirms within the hour, and with it off nothing re-anchors the observer,
+the quasi-steady estimate absorbs a constant, and it never confirms at all. Counted over every
+sensor-fault run that confirmed, the ramp reached an informative floor 12 times and a matched step 0
+times, the step reached a matched step 15 times and an informative floor 0 times, and
+\textbf{neither reached both once}.
+
+This report previously called that \emph{a gap in the fault model, not a defect in the classifier},
+on the grounds that the classifier's own unit test reaches the branch through a double applying a
+constant offset instantaneously, which no ramp can. \textbf{That attribution was tested and it was
+wrong.} The generator was given exactly that shape (\texttt{FaultKind.SENSOR\_OFFSET}, injectable
+through the unchanged four-field \texttt{FAULT\_SPEC} grammar), and the branch is still unreachable.
+The binding constraint is that \textbf{the classification is computed at the confirmation while one
+of its inputs needs a day of the fault}, which is a property of when the tree runs. The arithmetic
+that closes it: the overnight floor is a minimum over 1440 noisy samples, so it sits about 3.3\,$\sigma$
+(very nearly 100 ppm) below the level the room is holding, and the closest any offset came was
+a floor of 489 ppm against the 520 ppm the leaf needs, on a case confirmed 1621 min in. An offset
+large enough to lift the floor past 520 confirms within three minutes.
+\item \textbf{\texttt{BLOCKED\_FILTER} confirms as \texttt{UNCLASSIFIED}}, 11 of 11, exactly as
+Section \ref{sec:4}'s cross-room analysis predicts: the proportional split only redistributes a fixed total
+flow, so no command the monitor can watch pushes all six residuals the same way. In every run the
+first room confirmed is a room with \emph{no} damper fault in it, and all six latch by the end of
+the window. The fan-power excess is still attached as evidence, so the work order points at the
+plant even though the classification does not.
+\item \textbf{The stuck-damper leaf fires with no step on record, and trying to stop it emptied
+the leaf.} This is the most instructive thing T-15 found, and it took a failed fix to see it.
+\texttt{stepShapeUnchanged()} used to return \texttt{false} when the step-amplitude ratio was
+\texttt{NaN}, and \texttt{NaN} means \emph{no step was ever judged}. So the test ``the commanded
+step produced no matching response'' was satisfied by a room that had never been commanded to move.
+9 of 57 drift runs confirm by that route with zero judged steps; the other 48 failed the amplitude
+test genuinely, on 1--419 steps. The same codebase gets this right one field away, where
+\texttt{FaultSignals} documents the overnight floor's \texttt{NaN} as ``no evidence, not healthy''.
+
+The signal is now a three-valued \texttt{StepResponse} (\texttt{MATCHED},
+\texttt{MISSING}, \texttt{NOT\_JUDGED}), so the conflation cannot be written by accident any
+more. \textbf{But the leaf still accepts \texttt{NOT\_JUDGED}, deliberately, and the reason is a
+property of the architecture rather than a shortcut.} A probe is requested \emph{through the
+evidence on} \texttt{FaultStateChanged}, so a case must already be open before any \emph{probe}
+step is commanded, which means \textbf{the monitor has never judged a step it asked for at the
+moment it classifies}. What it may have is an ordinary control command that happened to arm a
+window: 48 of the 57 drift runs above had one, and 9 had none.
+Requiring positive evidence of an unanswered step was tried and measured: it took the one cell on
+T-15's diagonal to \texttt{UNCLASSIFIED} and left the tree classifying \emph{nothing at all}:
+the one named mechanism becoming none. The step-amplitude signal arrives \emph{after} the decision it was
+designed to inform, and no amount of care in the classifier can fix an ordering problem in the
+pipeline.
+
+So the leaf fires on localisation and flat fan power, and the work order now \textbf{says so}: a
+diagnosis reached without a judged step carries an explicit entry that it rests on two signals
+rather than three, that the room has not been asked to move and therefore has not failed to answer,
+and that a probe has been requested so the third signal can confirm or overturn it. The weakness is
+unchanged in behaviour and no longer invisible, which is what the evidence mechanism is for, and
+is strictly better than a boolean that quietly asserted a test nobody ran.
+
+\textbf{The obvious repair was then built and measured, and it does not work, because the third
+signal is blind after a confirmation rather than merely late.} If the problem is ordering, reorder:
+latch the case on the same cycle as before but \emph{withhold the diagnosis}, request the probe on
+that cycle instead of one probe interval later, and name the fault when the step window closes. That
+is implemented (\texttt{ClassifyWhen.AFTER\_PROBE}) and measured as T-35 over 176 paired runs on
+identical seeds. It does what it was designed to do: the case latches on the same cycle (detection
+moves in \textbf{0 of 88 pairs}), and the fault is named on a genuinely judged step in 28 of the 39
+runs that defer, against 0 under the deployed order. \textbf{And the settled classification is
+identical in all 88 pairs}, because the judged step comes back \texttt{MISSING} for a stuck damper,
+for a blocked filter, for nine drift runs whose damper is in perfect health, \emph{and} for the run
+with nothing injected at all. A signal that reads the same for every condition decides nothing, so
+the reorder buys a median 11 min of work order with no diagnosis on it and no change of answer. It
+is \textbf{not adopted}, and \texttt{ON\_CONFIRMATION} remains the deployed ordering.
+
+The cause is located and it predates the ordering. \texttt{ZoneObserver.recordStepAmplitude}
+accumulates the measured leg of the amplitude against \texttt{predictedAtStep} while the predicted
+leg is also against \texttt{predictedAtStep}, so the measured leg carries the \textbf{standing
+residual} as a constant offset. The anchor-gain pull that would make that baseline legitimate is
+switched off while a case is open, so at the confirmation the prediction is stale by exactly the
+residual that confirmed it, and the ratio becomes a statement about the residual rather than about
+the response. On a 600 ppm offset with a healthy damper that answers its probe by dropping 300 ppm,
+the ratio runs from $-7.0$ to $-0.8$: negative. \texttt{ZoneObserver.measuredAtStep} is assigned for
+this purpose and never read.
+
+Correcting that baseline was measured too, as an unlanded counterfactual, and it makes the reorder
+\emph{worse}: 18/44 to 15/44 on T-15's diagonal, because the corrected signal reads \texttt{MATCHED}
+on 3 of 8 genuinely stuck dampers and \texttt{MISSING} on 5 of 11 healthy ones. By the time a probe
+can be commanded the supervisor has degraded the zone, raised the fan and trimmed the five healthy
+dampers, so \textbf{the room's answer to the probe is mostly the compensation's answer rather than
+the damper's}. The 18/44 baseline reproduces on the current code; the 15/44 was measured on a one-line patch that was then reverted, so it is the one figure in this report that cannot be re-derived from the repository as it stands. \textbf{The conclusion is the useful part}: a three-signal stuck-damper diagnosis
+needs a step judged \emph{before} a case opens (the inner loop's own trims, read against a
+baseline that survives them), not a probe requested after the response to the fault has already
+begun. That is design work and §\ref{sec:13} carries it.
+\end{itemize}
+
+\subsection{Why the sensor-drift branch is the classifier's and not the generator's}\label{sec:D.3}
+
+A second, sharper limit on what can be claimed, and T-15 has since made it sharper still: of the
+faults the project set out to name, \textbf{one is classified and the others can only be
+pointed at}. This paragraph said \emph{two} until the confusion matrix was measured, and the
+correction is the single largest change the measurement made to this report.
+\texttt{STUCK\_DAMPER} is the reliable one, and T-24, T-25, T-26 and T-34b are all measurements of
+it. \texttt{BLOCKED\_FILTER}'s branch is \textbf{unreachable with this physics} for structural
+reasons that Section \ref{sec:13.1} sets out: a blocked filter confirms as \texttt{UNCLASSIFIED} with its
+plant power excess reported, which is the right behaviour for a case the system cannot prove.
+\texttt{SENSOR\_DRIFT} was described here as classified \emph{conditionally}, on the grounds that
+its signature needs 24 h of overnight floor and a case opened earlier comes out
+\texttt{UNCLASSIFIED}. Measured, the condition is not merely restrictive but \textbf{unreachable}: the branch was emitted
+in \textbf{0 of 76 runs} across drift rates from 5 to 160 ppm/h, because the injected drift is a
+\emph{rate} and by the time the floor has become informative the accumulated offset has already
+pushed the step amplitude below its match fraction. The room is then named a stuck damper: a
+confident, specific, wrong work order rather than an honest \texttt{UNCLASSIFIED}.
+
+\textbf{That diagnosis was then tested, and it was wrong in an instructive direction.} The reasoning
+above blames the \emph{fault model}: the classifier's own unit test reaches the branch through a
+double that applies a constant offset instantaneously, which no ramp can produce, so the obvious
+remedy was to give the generator that shape. It now has it: \texttt{FaultKind.SENSOR\_OFFSET}, a
+sensor whose zero jumps once and holds, which is a real failure mode in its own right (a
+recalibration against the wrong reference, a replacement element installed without one) and is
+injectable through the unchanged \texttt{KIND:TARGET:MAGNITUDE:ONSET} grammar. \textbf{The branch is
+still unreachable}: 0 of 76 runs from a step offset, swept from 50 to 700 ppm, beside the 0 of 76
+from a ramp. The leaf wants an informative overnight floor \emph{and} a matched step response in the
+same instant, and the two mechanisms fail it in complementary places: of the runs that confirmed,
+the ramp reached an informative floor 12 times and a matched step 0 times, the step reached a matched
+step 15 times and an informative floor 0 times, and \textbf{neither reached both once}. The binding
+constraint is that the classification is computed at the confirmation while one of its inputs needs a
+day of the fault. \textbf{So this is a property of the classifier, not of the generator}, and the
+report had the attribution the wrong way round until the experiment was run.
+
+\textbf{The confusion matrix this paragraph said must be read with those caveats in front
+of it now exists}, in Section \ref{sec:7.3}, and it is read with exactly them.

@@ -1,0 +1,92 @@
+T-27 container-level resilience run
+Commit daa2d5c, demo profile, REAL_EPOCH=2026-10-05T21:23:16Z, BUILDSIM_PORT=9091.
+Raw transcript of the kills and the journal queries around them. The report quotes these
+numbers in section 11.6 and section 10; this is the run they come from.
+
+# T-27 container-level resilience, 2026-10-05T21:28:41Z, REAL_EPOCH=2026-10-05T21:23:16Z
+## restart policies declared
+ventilation-fault-detection-dcv-controller-1 restart=unless-stopped
+ventilation-fault-detection-supervisor-1 restart=unless-stopped
+ventilation-fault-detection-fault-monitor-1 restart=unless-stopped
+ventilation-fault-detection-dashboard-1 restart=unless-stopped
+ventilation-fault-detection-physics-simulator-1 restart=unless-stopped
+ventilation-fault-detection-damper-actuator-1 restart=unless-stopped
+ventilation-fault-detection-co2-sensor-1 restart=unless-stopped
+ventilation-fault-detection-timescaledb-1 restart=unless-stopped
+ventilation-fault-detection-mosquitto-1 restart=unless-stopped
+ventilation-fault-detection-buildsim-1 restart=unless-stopped
+
+## baseline
+readings= decisions= commands=
+sim_clock=
+
+## baseline before any kill
+readings=1938  decisions=19  commands=126  faults_nonhealthy=12
+sim_clock=13:21
+last fan: 137.2 W
+
+=== TEST A - co2-sensor stopped (controlled blind window) ===
+before: readings=2124 non-healthy-non-blind-decisions=13 commands=128
+stopped co2-sensor at 21:29:23Z
+monitor states after 12 s (stale window is 180 simulated s = 3 real s):
+A115 COMPENSATING
+A116A BLIND
+A124 BLIND
+A125 BLIND
+A125A BLIND
+A145 BLIND
+during: readings=2124 (+0)  non-healthy-non-blind=14 (+1)  commands=132 (+4)
+ASSERT no new diagnosis while blind: delta=1
+
+=== TEST A2 - co2-sensor restarted ===
+started at 21:29:36Z
+A115 COMPENSATING
+A116A HEALTHY
+A124 HEALTHY
+A125 HEALTHY
+A125A HEALTHY
+A145 HEALTHY
+readings now=2214
+
+=== TEST B - fault-monitor killed (restart policy + ventilation continues) ===
+killed fault-monitor at 21:29:52Z
+container state: exited restarts=0
+damper commands during monitor outage: +1  (ventilation must continue)
+
+=== TEST C - supervisor killed while compensating (plant holds last setting) ===
+killed supervisor at 21:30:07Z, fan was 158.3 W
+container state: exited restarts=0
+fan now: 158.3 W
+new strategies during outage: +0
+A115 still latched: COMPENSATING
+
+=== FINAL ===
+readings 2214
+decisions 36
+commands 135
+  ventilation-fault-detection-dcv-controller-1 Up 7 minutes
+  ventilation-fault-detection-dashboard-1 Up 7 minutes
+  ventilation-fault-detection-physics-simulator-1 Up 7 minutes
+  ventilation-fault-detection-damper-actuator-1 Up 7 minutes
+  ventilation-fault-detection-co2-sensor-1 Up 46 seconds
+  ventilation-fault-detection-timescaledb-1 Up 7 minutes (healthy)
+  ventilation-fault-detection-mosquitto-1 Up 7 minutes (healthy)
+  ventilation-fault-detection-buildsim-1 Up 7 minutes (healthy)
+
+## Restart policy, afterwards
+docker inspect after the kills:
+  fault-monitor  status=exited exit=137 restarts=0 policy=unless-stopped
+  supervisor     status=exited exit=137 restarts=0 policy=unless-stopped
+A kill through the daemon is recorded as a manual stop, which suppresses the policy.
+PID 1 inside the images is 'java -jar quarkus-run.jar' with no init wrapper, and SIGKILL
+sent to PID 1 from inside its own namespace is ignored by the kernel, so the policy cannot
+be exercised from outside. It remains asserted by configuration and not demonstrated.
+
+## Restart policy, measured
+docker exec <container> kill -TERM 1   (SIGTERM from inside; Quarkus handles it)
+  before: status=running restarts=0 policy=unless-stopped
+  t+3s:   running 1
+  after:  status=running exit=0 restarts=1
+The policy fires when the process exits on its own. It does not fire after docker kill,
+because a daemon-issued kill is recorded as a manual stop. A chaos test that only uses
+docker kill cannot tell a working restart policy from a missing one.

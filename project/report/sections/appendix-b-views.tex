@@ -1,0 +1,127 @@
+\section{The component view, the code-level views, the sequence view, and the documentation approach}\label{sec:B}
+
+\subsection{Component diagram (C4 Level 3): inside \texttt{fault-monitor}}\label{sec:B.1}
+
+\begin{center}\includegraphics[height=0.72\textheight]{figures/component.pdf}\end{center}
+\figcap{C4 Component diagram (Level 3), from \texttt{project/diagrams/component.d2}: inside
+\texttt{fault-monitor}. Every box is one \emph{component}, tagged with that element type and
+labelled with the exact type name so a reader can grep for it; where the source lives in
+\texttt{shared/} rather than in \texttt{fault-monitor/} the box says so, because at runtime it is
+a component of this container either way. The \texttt{boundary} group holds every framework and
+transport type; \texttt{control} and \texttt{entity} depend on nothing outward.}
+
+\subsection{Code diagrams (C4 Level 4), and why only two}\label{sec:B.2}
+
+C4's own guidance is that the code level is \emph{optional} and worth drawing only for the parts
+that warrant it; a class diagram of everything is a diagram nobody reads and that rots on the
+first rename. The criterion used here is narrower than ``the complicated parts'': \textbf{a code
+diagram earns its page where a claim this report makes is a claim about the shape of the code
+rather than about the physics, and where the Level 3 box hides the very thing being claimed.} Two
+places meet it. Everything else in the system is either a plain adapter, where the port name is
+already the whole story, or logic whose interesting content is arithmetic that Sections \ref{sec:6} and \ref{sec:7}
+give in full.
+
+\begin{center}\includegraphics[width=\linewidth]{figures/code-diagnosis.pdf}\end{center}
+\figcap{C4 Code diagram (Level 4), from \texttt{project/diagrams/code-diagnosis.d2}: the
+diagnosis chain in \texttt{fault-monitor}'s \texttt{control} layer. Deliberately partial: only
+the types an arrow lands on, and only the members that carry one of the claims below.
+\texttt{MonitorParameters}' 25 settings (23 numbers and durations, plus the \texttt{lowerArm} and
+\texttt{classifyWhen} mode enums), \texttt{OvernightFloor}, \texttt{AhuFlowModel} and
+\texttt{FaultSignals}' twelve components stay at Level 3; \texttt{MonitorState}'s constants and
+transitions are the state machine of Section \ref{sec:8.3} and are not drawn twice.}
+
+Four claims in this report are claims about this figure, and at Level 3 all four are hidden
+inside one box called \texttt{ZoneMonitor}.
+
+\begin{itemize}
+\tightlist
+\item \textbf{The cycle has two phases and the order is load-bearing.}
+  \texttt{FaultMonitor.runCycle()} calls \texttt{evaluate(now)} on all six monitors, then counts
+  how many are \texttt{elevated()}, and only then calls \texttt{decide(signals, now)} on all six.
+  The count is the common-mode signal that separates a blocked filter from a stuck damper, so a
+  single-phase loop would hand room six a count mixed from this cycle and the last.
+\item \textbf{The published residual is not the accumulated one.} \texttt{ZoneMonitor.evaluate}
+  computes three quantities from one \texttt{Prediction}: \texttt{measured - predicted} goes out
+  on \texttt{residuals/\{zone\}} because it is the honest number a human should see;
+  \texttt{measured - ceiling} drives the upper CUSUM; and under the deployed \texttt{GUARDED}
+  lower arm, \texttt{measured - floor} drives the lower one. The ceiling quantity is
+  \emph{subtracted} rather than clipped at zero, which Section \ref{sec:7.3} explains is what keeps the
+  in-control run length R-3 rests on.
+\item \textbf{\texttt{serviced()} now has a transport, and the asymmetry this bullet used to
+  describe is gone.} \texttt{FaultCase.serviced(ObservedAt)} is the only exit from
+  \texttt{CONFIRMED} and \texttt{COMPENSATING}, and for most of this project's life nothing reached
+  it: its only callers were two unit tests, so in the deployed system a false latch was permanent.
+  It is reachable now by \texttt{ServiceReported} on \texttt{service/\{zone\}}, which
+  \texttt{fault-monitor} subscribes to through a \texttt{ServiceRequests} adapter that validates it,
+  and by \texttt{POST /api/zones/\{zone\}/cases/\{caseId\}/serviced} on the dashboard. The topic is
+  deliberately \emph{not} under \texttt{commands/}: it carries a report about the world, not an
+  instruction to an actuator, and putting it under \texttt{commands/} would have given a second
+  publisher authority over a topic space the actuator owns. The full
+  \texttt{CONFIRMED}~→~\texttt{COMPENSATING}~→~\texttt{SERVICED}~→~\texttt{WARMUP}~→~\texttt{HEALTHY}
+  lifecycle is executable and tested end to end, including that a reported repair unwinds the
+  compensation (Section \ref{sec:13.1}).
+\item \textbf{\texttt{DAMPER\_STUCK\_\allowbreak OPEN} now exists, and naming it did not make it
+  reachable.}
+  \texttt{FaultClassi\allowbreak fication} holds \texttt{NONE}, \texttt{STUCK\_DAMPER},
+  \texttt{DAMPER\_STUCK\_OPEN}, \texttt{BLOCKED\_FILTER}, \texttt{SENSOR\_DRIFT} and
+  \texttt{UNCLASSIFIED}. Three things branch on the new constant: the classifier's low-side leaf,
+  the supervisor's work-order narrative, and its severity. A damper stuck open is \texttt{WARNING}
+  rather than \texttt{CRITICAL}, because that room is over-ventilated and safe while the other five
+  are short. The two extremes are deliberately re-joined by \texttt{isUnresponsiveDamper()} for the
+  one purpose where the direction is irrelevant: pinning the shared flow belief. \textbf{But the
+  diagnosis is still unreachable at the deployed setting}, because only the unguarded lower CUSUM arm
+  sees a damper stuck wide open and that arm costs six false confirmations per fault-free week
+  against R-3's limit of one (Section \ref{sec:13}). So this makes the fault \emph{expressible and
+  actionable}, not detectable, and the trade it sits behind is unchanged.
+\end{itemize}
+
+\begin{center}\includegraphics[height=0.72\textheight]{figures/code-compensation.pdf}\end{center}
+\figcap{C4 Code diagram (Level 4), from
+\texttt{project/diagrams/code-compensation.d2}: the compensation solver in
+\texttt{supervisor}'s \texttt{control} layer. The inset lists the order of steps inside
+\texttt{solve()}; none of them repeats. \texttt{PlantState},
+\texttt{ProbeLimiter} and \texttt{WorkOrderNarrative} are Level 3, and the algebra itself is
+Section \ref{sec:7.4} rather than this figure.}
+
+The solver is the second case, and the reason is the same: Section \ref{sec:7.4}'s central claim is that
+holding five healthy flows while multiplying the sixth is a \textbf{closed form rather than a
+search}, and that is a statement about this code's shape that no box labelled ``the compensation
+solver'' can carry. \texttt{CompensationSolver.solve} is straight-line: no loop over candidate
+solutions, no convergence test, no per-room balance, and the only loop in the method writes the
+result map. The three helper methods are each a closed form (\texttt{trimFloor},
+\texttt{preservingSpeed}, \texttt{toleratedTrimFloor}), and the one conditional re-solve, when the
+preserving speed would exceed the fan's ceiling, happens at most once. The two constants the
+figure names are bounds rather than tuning knobs: \texttt{MAXIMUM\_REQUESTED\_GAIN} = 4.0 because
+the dampers' 0.15 floor caps the trim at 0.25, and \texttt{HEALTHY\_FLOW\_TOLERANCE} = 0.05
+because that is the most a healthy room may be asked to give up (or, read the other way, to be
+over-supplied by, once there is no trim left to make).
+
+\subsection{The key scenario in time (sequence diagram)}\label{sec:B.3}
+
+The sequence view adds what the dynamic view leaves out: duration, and the three phases that
+follow confirmation. Its fourth group is the point of the project: after compensation the
+residual collapses to 20 ppm and the CUSUM to zero, and the case does \emph{not} clear.
+
+\begin{center}\includegraphics[height=0.86\textheight]{figures/sequence.pdf}\end{center}
+\figcap{Sequence diagram, from \texttt{project/diagrams/sequence.d2}. Four groups: the inner loop
+filling the room; the outer loop confirming and responding; the latch holding after compensation
+has made the CO₂ curve look healthy; and service, the only exit.}
+
+\subsection{The documentation approach: C4 for the views, arc42 for the frame}\label{sec:B.4}
+
+Two frameworks are used, for two different jobs, and each is weak where the other is strong.
+\textbf{C4 supplies the structural views}: a numbered zoom from context to containers to components
+to code, with a fixed element vocabulary at each level, so a reader can tell what kind of thing a box
+is without reading its label twice. \textbf{arc42 supplies the document frame}: twelve numbered
+sections that force the questions a structural diagram cannot answer (constraints, cross-cutting
+concepts, quality scenarios, risks and technical debt). C4 has no place to put a measured quality
+scenario or an honest debt register, and arc42 names a ``building block view'' without saying what a
+building block may be.
+
+The arc42 document is \texttt{project/docs/arc42.md}, and it deliberately does \emph{not} repeat
+this report: where the report says something, arc42 cites the section and summarises it, and its
+value is the two things this report has no natural home for: the quality tree with its measurable
+scenarios (arc42 §10) and the debt register as of a stated date (arc42 §11). The C4 diagrams are
+shared rather than duplicated: both documents reference the same nine files in
+\texttt{project/diagrams/}.
+\label{sec:Bend}

@@ -1,0 +1,62 @@
+\section{Risk register}\label{sec:J}
+
+The register \S\ref{sec:13.11} points at. Each row is a risk or an assumption, its impact, and the response
+with its current status.
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 4\tabcolsep) * \real{0.32}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 4\tabcolsep) * \real{0.26}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 4\tabcolsep) * \real{0.42}}@{}}
+\toprule
+\textbf{Risk or assumption} & \textbf{Impact} & \textbf{Response, and its status} \\
+\midrule
+\endhead
+R-3 fails at the seven-day six-room horizon & The headline false-alarm claim goes &
+\textbf{Measured, and it does fail}: 0.55 confirmed cases per fault-free week against a limit of 1
+over 20 weeks, 16 of 20 weeks clean, worst week 6, which is the scored criterion (§\ref{sec:11.2}); 1.30 per
+week with 9 clean weeks before ADR-0010 attributed the cause. Persistence of two cycles is in place
+and is not enough; the mechanism is now named and half of it is corrected, and the half that would
+meet R-3 outright costs R-1's closed-loop arm, T-27 and R-7 \\
+A damper stuck wide open is invisible under the guarded lower arm & Five neighbours quietly robbed
+of air by the split, and a controller that never learns its damper is dead & The two-sided statistic
+\textbf{is implemented} and its guarded arm is the deployed default, which catches the
+safety-relevant low-side fault; the unguarded setting catches both and costs more false confirmations
+than R-3 allows. \texttt{DAMPER\_STUCK\_OPEN} now \textbf{exists} as a classification and three
+things branch on it, so the fault is expressible and actionable, but naming it did not make it
+detectable, and the trade is unchanged. Note the correction: a damper frozen open does \emph{not}
+waste fan energy, because the shared fan delivers a fixed total at a given speed and the six openings
+only divide it. It misallocates \\
+\texttt{serviced()} had no transport & A false latch would be permanent in deployment &
+\textbf{Implemented}: \texttt{service/\{zone\}}, a validating adapter, and
+\texttt{POST /api/zones/\{zone\}/cases/\{caseId\}/serviced}; the full lifecycle is tested end to end \\
+The detector shares its generator's assumptions & Detection numbers do not transfer & Stated as a
+bound on every detection claim; a second independent fault model would be needed \\
+Occupancy-dependent detection delay & A lightly occupied room hides its fault &
+\textbf{Measured, and the risk is real}: stratifying the closed-loop runs by the head count at the
+ignored command gives 0 of 4 confirmed at 0.625 of design occupancy, then 77 min median at 0.875
+and 31 min at 1.00 (§\ref{sec:11.2}). The plausibility ceiling limits false confirmations and \emph{is} the
+mechanism of this delay. What is still unmeasured is a sweep that holds the occupancy ratio as a
+controlled input over a wider range than a drawn weekday visits \\
+The ambiguous fault is absent from the model & A clean confusion matrix would mean little & Add a
+per-branch obstruction to the generator; not done \\
+\texttt{BLOCKED\_FILTER} is unreachable with this physics & One of the three named faults can be
+pointed at but never confirmed & Pinned by a test that asserts \texttt{UNCLASSIFIED} so the finding
+cannot rot; the work order still carries the plant power excess \\
+R-6's number comes from the harness, not from a container & R-6 is measured for the monitor
+rather than for the deployed system & The entity-layer capability is wired to the harness and
+measured there (§\ref{sec:11.2}); every container reads it through \texttt{ZONE\_COUNT}, and what stays
+harness-only is the breaking point rather than the capability \\
+Fan saturation & Compensation degenerates to redistribution, gain 1.296 & Bounded by a 5 \% healthy
+tolerance and reported as the achieved gain; working as designed \\
+The healthy-damper trim is the only lever, and every damper sits on its floor & Compensation is a
+no-op and the supervisory loop is worth nothing, or less than nothing & \textbf{Measured, and it
+did happen}: $+0.000$ of occupied minutes on the drawn weekday and 34 ppm \emph{worse} than no
+supervisor at design occupancy. Fan speed is now spent once the trim is exhausted (135 ppm of help
+in that regime), bounded by the 5 \% healthy tolerance because the lever is not selective, and that
+5 \% is itself kept on a sweep rather than assumed (ADR-0009). The 0.05 cases per week once charged
+to this lever against R-3 is withdrawn: the allowance does not move R-3 at any setting from 0.05 to
+0.99, and ADR-0010 attributes those confirmations to the plausibility guards instead (§\ref{sec:11.2}) \\
+Broker is a single point of failure & Readings stop flowing & Restart policy; a dead publisher
+produces silence, which drives \texttt{BLIND} rather than a wrong decision \\
+\bottomrule
+\end{longtable}

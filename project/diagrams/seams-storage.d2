@@ -1,0 +1,42 @@
+# P5, the hot store — where TimescaleDB could become something else, and where it can simply be
+# switched off.
+#
+# TIER 2, and the seam with the sharpest split between its two directions. Turning the store OFF
+# is a configuration: unset JDBC_URL and each of the four clients substitutes a no-op, costing
+# R-5 reconstruction and nothing else. Replacing it with a different store is a code change that
+# drags a schema and a compose service behind it, because the six hypertables are the adapter's
+# and create_hypertable is a Timescale extension. A single tier would have been a lie about one
+# of the two directions; both are argued in seams.md § P5, together with why the port is an
+# append-and-replay contract rather than a repository.
+#
+# VERIFIED AGAINST: ResidualJournalPort.java:14 with :9-13 and :21; TimescaleJournalAdapter.java:46,
+# :48-56, :180-229; SkippedJournal.java:16 with :10-14; DiscardingJournal; CountingJournal.java:16;
+# the four roots DamperControlJob.java:88, MonitorRuntime.java:159, SupervisorConfiguration.java:72,
+# DashboardRuntime.java:179; deploy/timescaledb/init.sql:11-85; a grep showing nothing outside
+# this adapter touches java.sql.
+direction: down
+
+classes: {
+  contract: { shape: hexagon; style.stroke-width: 2 }
+  port: { shape: parallelogram; style.stroke-width: 2 }
+  t1: { style.stroke: "#1e8449"; style.fill: "#eafaf1" }
+  t2: { style.stroke: "#b9770e"; style.fill: "#fdf3e3" }
+  t3: { style.stroke: "#c0392b"; style.fill: "#fdedec"; style.stroke-dash: 4 }
+  box: { style.stroke-width: 2 }
+  doc: { shape: document; style.fill: transparent }
+}
+
+clients: "dcv-controller · fault-monitor\nsupervisor · dashboard" { class: box }
+p5: "P5 · ResidualJournalPort" { class: [port; t2] }
+api: "append · replayCase · replayZone" { class: box }
+tsdb: "timescaledb\nsix hypertables" { shape: cylinder; class: box }
+off: "JDBC_URL unset -> a no-op\ncosts R-5 and nothing else" { class: box }
+impls: "four implementations\nTimescale · Skipped · Discarding" { class: box }
+md: "both directions · evidence\nseams.md § P5" { class: doc }
+
+clients -> p5: "append, and replay [SQL]"
+p5 -> api
+api -> tsdb: "native SQL (ADR-0002)"
+p5 -> off
+p5 -> impls
+p5 -> md

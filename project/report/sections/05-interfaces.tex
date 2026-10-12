@@ -1,0 +1,112 @@
+\section{Interfaces and data contracts}\label{sec:5}
+
+Three communication patterns are used, each for the job it fits. \textbf{MQTT pub/sub} carries
+readings, commands, residuals, fault events and strategies, because one producer feeds several
+consumers and a dead producer should go silent rather than block. \textbf{REST} carries every call
+to BuildSim, because each is a one-to-one request whose result the caller must confirm.
+\textbf{HTTP} serves the dashboard page and its JSON. This section is written to be precise enough
+to re-implement a component from.
+
+\subsection{MQTT topics and payloads}\label{sec:5.1}
+
+\texttt{\{zone\}} is one of the six zone identifiers \texttt{A125A}, \texttt{A125},
+\texttt{A116A}, \texttt{A115}, \texttt{A124}, \texttt{A145}; \texttt{\{ahu\}} is
+\texttt{AHU-A120}. The zone identifier is the bare room name and not BuildSim's key
+\texttt{level0/A115}, because the key contains a slash, which would split an MQTT topic; the
+BuildSim adapter is the only place that knows the key.
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 8\tabcolsep) * \real{0.2261}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 8\tabcolsep) * \real{0.1500}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 8\tabcolsep) * \real{0.1600}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 8\tabcolsep) * \real{0.2100}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 8\tabcolsep) * \real{0.2539}}@{}}
+\toprule
+\textbf{Topic} & \textbf{Publisher} & \textbf{Subscribers} & \textbf{Payload fields} &
+\textbf{Semantics} \\
+\midrule
+\endhead
+\texttt{readings/\{zone\}/co2} & \texttt{co2-sensor} & controller, monitor, supervisor,
+dashboard &
+\texttt{zone}, \texttt{ppm}, \texttt{ts}, \texttt{quality} & One per room per second.
+\texttt{quality} is the sensor process's own judgement of the reading. The supervisor is a
+subscriber because it sizes a compensation plan from measured air \\
+\texttt{readings/\{ahu\}/\allowbreak fan-power} & \texttt{co2-sensor} & monitor, dashboard & \texttt{ahu},
+\texttt{watts}, \texttt{ts}, \texttt{quality} & One fan, so one topic. The monitor's only
+cross-room signal \\
+\texttt{commands/\{zone\}/damper} & \texttt{dcv-controller}; \texttt{supervisor} for the probe &
+actuator, monitor, supervisor & \texttt{zone}, \texttt{position}, \texttt{ts}, \texttt{reason},
+\texttt{commandId} & \texttt{commandId} is what the residual is keyed to; \texttt{reason} is
+human-readable so every action is auditable. The supervisor subscribes to its own topic because
+it has no other damper feedback \\
+\texttt{commands/\{ahu\}/\allowbreak fan-speed} & \texttt{supervisor} only & actuator, monitor,
+dashboard & \texttt{ahu},
+\texttt{speed}, \texttt{ts}, \texttt{reason}, \texttt{commandId} & The compensation lever. The
+inner loop never writes this topic; the monitor subscribes so that its believed flow split tracks
+the speed it was not told about directly \\
+\texttt{residuals/\{zone\}} & \texttt{fault-monitor} & dashboard & \texttt{zone},
+\texttt{residual}, \texttt{cusum}, \texttt{ts}, \texttt{commandId} & Published every cycle,
+including in \texttt{WARMUP}, where no diagnosis is issued \\
+\texttt{faults/\{zone\}} & \texttt{fault-monitor} & supervisor, dashboard & \texttt{zone},
+\texttt{state}, \texttt{classification}, \texttt{evidence}, \texttt{ts}, \texttt{caseId} &
+\texttt{state} is the monitor state; \texttt{classification} is one of \texttt{STUCK\_DAMPER},
+\texttt{DAMPER\_STUCK\_OPEN}, \texttt{BLOCKED\_FILTER}, \texttt{SENSOR\_DRIFT} or
+\texttt{UNCLASSIFIED} \\
+\texttt{strategy/\{zone\}} & \texttt{supervisor} & controller, dashboard & \texttt{zone},
+\texttt{mode}, \texttt{trimmedPosition}, \texttt{ts}, \texttt{caseId} & \texttt{DEGRADED} tells the
+inner loop to stop commanding that room; \texttt{COMPENSATING} carries that one room's own trimmed
+damper position in \texttt{trimmedPosition}, absent under the other two modes \\
+\texttt{service/\{zone\}} & \texttt{dashboard}, or any operator tool & \texttt{fault-monitor} &
+\texttt{zone}, \texttt{caseId}, \texttt{reason}, \texttt{ts} & The equipment behind a latched case
+was repaired, which is the \emph{only} thing that clears one. Refused unless that exact case is open
+and latched. \textbf{Deliberately not under \texttt{commands/}}: it reports something about the
+world rather than instructing an actuator, and putting it there would give a second publisher
+authority over the topic space \texttt{damper-actuator} owns \\
+\bottomrule
+\end{longtable}
+
+Two example payloads, with units in the field names or stated, so no consumer has to guess:
+
+\begin{footnotesize}
+\begin{verbatim}
+readings/A115/co2        { "zone": "A115", "ppm": 1020.4,
+                           "ts": "2026-10-05T09:14:00Z", "quality": "GOOD" }
+
+faults/A115              { "zone": "A115", "state": "CONFIRMED",
+                           "classification": "STUCK_DAMPER",
+                           "evidence": ["cusum 175 ppm > h 150 ppm for 2 cycles",
+                                        "fan power flat at 137 W",
+                                        "5 of 6 residuals quiet",
+                                        "overnight floor 418 ppm"],
+                           "ts": "2026-10-05T09:21:00Z", "caseId": "case-3" }
+\end{verbatim}
+\end{footnotesize}
+
+\subsection{REST, against BuildSim}\label{sec:5.2}
+
+BuildSim's schema is not mine, so this is the one place a translation layer exists.
+
+Six calls, all one-to-one writes or reads whose result the caller must confirm, which is why each
+is REST and not a message: the simulator writes sensor values and reads back the actuator state
+that actually applied, \texttt{co2-sensor} reads its own sensor, \texttt{damper-actuator} writes
+actuator state as the single source of truth, \texttt{supervisor} writes the work-order alert, and
+\texttt{dashboard} repaints the room layers every 5 s idempotently. \textbf{Appendix \ref{sec:C.3}} gives
+caller, direction, purpose and the reason for each.
+
+\subsection{Journal (TimescaleDB)}\label{sec:5.3}
+
+Six typed hypertables: \texttt{readings}, \texttt{fan\_power}, \texttt{commands},
+\texttt{residuals}, \texttt{decisions} and \texttt{strategies}. Every row of all six carries two
+provenance columns (\texttt{source}, which process wrote it, and \texttt{received\_at}, distinct
+from the event's own observation time so that an arrival delay is visible rather than invisible),
+and \texttt{commands} and \texttt{residuals} additionally carry \texttt{command\_id}. That last
+column is the one that makes R-5 mean anything: \textbf{a residual that cannot be tied to the
+command it was judged against is not evidence}. Window queries over the residual series for one
+\texttt{caseId} are hand-written native SQL rather than an ORM, which is the one place the plan
+allows raw SQL and the one place it is clearly right: the query is a time-bounded ordered window,
+not entity retrieval.
+
+\textbf{There is no retention or compression policy}, and no chunk interval is specified, so
+TimescaleDB's seven-day default applies and nothing is ever dropped. For runs of the length this
+project uses that is harmless; it is stated here because describing a policy that does not exist
+would be the easier and less honest option.

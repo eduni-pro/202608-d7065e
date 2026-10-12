@@ -1,0 +1,272 @@
+# Demo profile: the same ten containers, with the building running 60 times faster than the
+# clock on the wall, so the headline scenario fits an oral slot instead of an afternoon.
+#
+#   mvn -q package -DskipTests
+#   export BUILDSIM_PORT=9091
+#   export REAL_EPOCH=unused-by-build      # see below: compose refuses EVERY command without it
+#   docker compose -f docker-compose.yml -f docker-compose.demo.yml build
+#   export REAL_EPOCH="$(date -u +%Y-%m-%dT%H:%M:%SZ)"   # now take the real one, after the build
+#   docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d
+#
+# The build is a separate step on purpose: the shell evaluates `date` before it execs compose, so
+# an epoch taken in front of `up --build` would be however long the image build took older than
+# the containers that read it. See REAL_EPOCH below.
+#
+# REAL_EPOCH is nevertheless needed FOR THE BUILD, which is not obvious and cost a session once.
+# `:?` makes compose refuse to interpolate this file at all without it, so `build` fails the same
+# way `up` does — and it fails while still exiting 0 through a pipe, so a build that never ran can
+# look like one that did and leave `up` starting containers from stale images. The value used for
+# the build is discarded; only the one exported before `up` reaches a container.
+#
+# Nothing here changes a model, a threshold or a decision rule. It changes only how much simulated
+# time one real second carries, and then divides every loop period by the same number so that each
+# loop still fires at the same point in SIMULATED time.
+#
+# ---------------------------------------------------------------------------------------------
+# ONE NOTION OF TIME, AND WHAT ANCHORS IT
+#
+# Every one of the seven project-authored processes computes simulated time as
+#
+#       simulated now = START_AT + (real now - REAL_EPOCH) x TIME_SCALE
+#
+# and not one of them counts from its own start. That is the whole of the fix, and the reason is
+# arithmetic rather than taste: a clock that began at its own construction would put six processes
+# started at six different real instants on six timelines, permanently offset from each other and
+# from the plant, and a restarted container would open a seventh. The offsets would reach the
+# monitor as residuals and staleness that look exactly like a fault. REAL_EPOCH removes the
+# question: whenever a container starts, and however often it restarts, it computes the same
+# simulated instant as the other six.
+#
+# REAL_EPOCH must therefore be ONE instant for the whole stack, generated once per `up` and not
+# once per container. Compose has no way to generate it — but it substitutes from the invoking
+# shell, exactly as it already does for FAULT_SPEC, and the shell evaluates `date` once before
+# compose is even started. So the command above gives all seven containers one epoch. The variable
+# is declared below with `:?`, which makes compose refuse to start the demo profile without it
+# rather than let each container quietly fall back to an epoch of its own; a per-container epoch
+# is the bug this file used to document, and it must not be reachable by forgetting a variable.
+#
+# What a process does with the simulated clock depends on what it is. The simulator PACES on it:
+# its tick loop IS the timeline, so when it starts a few real seconds after the epoch it finds
+# itself behind, and its first tick integrates the whole span from START_AT to wherever the shared
+# clock has got to — in one-second Euler steps, with the occupancy schedules and the fault onsets
+# re-evaluated at each of them, exactly as if it had been running all along. The plant's state at a
+# given simulated instant therefore does not depend on how long the containers took to start, which
+# is what makes a T+ onset aimable at the occupancy day. The sampler and the two schedulers do not
+# pace on the simulated clock; they keep their real loop periods and use it only to stamp and to
+# judge, because a loop that paced on it would replay its own backlog at full speed.
+#
+# ---------------------------------------------------------------------------------------------
+# THE ARITHMETIC
+#
+# S = TIME_SCALE = 60 simulated seconds per real second. The rule is
+#
+#       wall-clock period = simulated period / S
+#
+# and the simulated period is what the base file's value means at S = 1:
+#
+#   component           base value              demo value        simulated period   preserved?
+#   physics-simulator   TICK_SECONDS 1          TICK_SECONDS 1    60 s of plant per
+#                                               TIME_SCALE  60    1 s real tick
+#   fault-monitor       CYCLE_SECONDS 60        CYCLE_SECONDS 1   60 s -> 60 s       yes, exactly
+#   dcv-controller      control.seconds 1       control.seconds 1  1 s -> 60 s       no, see below
+#   co2-sensor          SAMPLE_SECONDS 1        SAMPLE_SECONDS 1   1 s -> 60 s       no, see below
+#
+# Every one of those four is now a REAL loop period that the process multiplies by TIME_SCALE to
+# get the simulated span its model, its deadline and its staleness window are written against.
+# CYCLE_SECONDS: 1 therefore still gives the monitor one cycle per 60 simulated seconds, the CUSUM
+# still gets one residual per simulated minute, and k and h still mean what ADR-0008 tuned them to
+# mean. Unlike the previous revision of this file, that now makes the monitor's RESIDUAL right as
+# well as its cadence, because ZoneObserver.advance(now) integrates over simulated time on the
+# same timeline the plant moves on. The measurement is in the limitation section at the bottom.
+#
+# The inner loop and the sensor cannot be scaled, and the reason is a floor rather than a choice:
+#
+#   * 1 / 60 s = 16.7 ms is not expressible. dcv-controller injects control.seconds as a `long`
+#     (DamperControlJob) and hands it to Duration.ofSeconds, and co2-sensor parses SAMPLE_SECONDS
+#     with Long.parseLong. The smallest legal value either will take is 1. Writing 0.017 would not
+#     start the container, and writing 0 would give the Quarkus scheduler a zero period.
+#   * Even if they took a fraction, TICK_SECONDS is already 1 and cannot go below it, so the plant
+#     only produces a new state once per real second. Sampling faster would resample the same air.
+#
+# So both stay at 1 real second, which is one sample and one control decision per 60 simulated
+# seconds instead of per simulated second. Stated plainly: the demo runs a one-minute inner loop
+# and a one-minute outer loop where the base profile runs a one-second inner loop and a one-minute
+# outer loop. What that costs is bounded and visible — the inner loop reacts to a threshold
+# crossing within one simulated minute rather than within one simulated second, against an A115
+# time constant V/Q of about 36 minutes — and what it buys is that the controller still acts on
+# every reading that exists, which is the strongest statement available at any tick rate.
+#
+# Because the sample interval is a simulated minute here, so is everything derived from it. The
+# controller's freshness limit is 3 x 60 = 180 simulated seconds and the monitor's staleness window
+# is 3 cycles = 180 simulated seconds: the same three simulated minutes as in the base file, now
+# measured on the same clock the readings are stamped with. The dashboard's STALE_SECONDS is not
+# scaled, because 180 s was already a span of the building's day rather than a loop period.
+#
+# ---------------------------------------------------------------------------------------------
+# THE SCENARIO, AND WHERE ITS NUMBERS COME FROM
+#
+# START_AT is 07:45 on Friday 2026-10-09, fifteen simulated minutes before the arrivals. On that
+# calendar day, at SEED 42, OccupancyScheduler draws A115 — the ten-seat meeting room, 132 m3 —
+# three consecutive booked hours: six people from 08:00, seven from 09:00, ten from 10:00, empty
+# from 11:00. That is the longest continuous booking any room gets that week, and it is why this
+# date rather than another: the room has time to fill, be controlled, and then be starved.
+#
+# A115 at the 15 % minimum position takes 0.0610 m3/s of the fan's 0.294 m3/s, so six people drive
+# it towards 420 + 6 * 5 / 0.0610 = 912 ppm with a 36-minute time constant. Measured against the
+# 800 ppm open threshold through 30 ppm of sensor noise, the first damper command lands at 08:46
+# simulated — derived at 08:44, measured at 08:46, the difference being which side of the noise the
+# first crossing falls on. The fault must land after that, so the demo shows the loop working before
+# it shows it
+# failing, and it must land while the room is still filling, so the residual keeps growing after
+# onset. 09:15 satisfies both: half a simulated hour of healthy modulation first, and A115 still
+# occupied for another hour and three-quarters afterwards, with ten people arriving at 10:00.
+#
+#   07:45 + 90 min = 09:15  ->  ONSET = T+5400
+#
+# T+ is counted in SIMULATED seconds from START_AT, not in real seconds from container start (see
+# Main and ScaledClock). That is the only reading of it that can be aimed at a schedule, and it is
+# unaffected by when the containers happen to start, because the simulator traverses the simulated
+# time that passed before its first tick instead of skipping it.
+#
+# Wall clock from REAL_EPOCH, one real second per simulated minute.
+#
+#   +0 s    07:45  rooms at 420 ppm, building empty, dampers at the 15 % minimum
+#   +10 s   07:55  the monitor's first decision: all six rooms HEALTHY
+#   +60 s   08:45  A115 771 ppm true / 801 measured, six occupants
+#   +61 s   08:46  the first damper command on A115, and sixteen more before the onset: the inner
+#                  loop is seen working before it is seen failing
+#   +90 s   09:15  the damper jams at 0.15 while the controller keeps asking for more. The onset is
+#                  resolved from T+5400 against START_AT at boot and logged as the simulated
+#                  instant; TimeScaledSimulationTest pins that it bites on the first tick at or
+#                  after it, at any scale
+#   +118 s  09:43  A115 SUSPECT
+#   +120 s  09:45  A115 CONFIRMED STUCK_DAMPER, 1066 ppm true, and DEGRADED by the supervisor
+#   +120 s  09:45  A115 is past the 1000 ppm comfort limit, which is the cost the work order names
+#
+# Those are measured, not derived; the run they come from is in the limitation section below.
+#
+# SUPERSEDED. The scope of this notice is the timeline printed immediately above, which was
+# measured at commit 5618fb5. It is left in place rather than rewritten because the sequence of
+# states it shows is still the right shape; only its numbers are stale.
+#
+# This block has itself been wrong once, so it now carries its own history rather than a single
+# verdict. Three commits moved the behaviour after 5618fb5: ad78141 stopped the monitor believing
+# a stuck damper's commanded position, 1789724 gave the supervisor the fan lever, and the R-3 work
+# in ADR-0010 found the plausibility guards were filtering the measurement rather than bounding
+# it. Between the first two and the third, the demo confirmed A115 at simulated 08:00 and
+# classified it SENSOR_DRIFT -- a false alarm 75 minutes before the onset -- and an earlier version
+# of this block described that as current. ADR-0010 removed it.
+#
+# Measured on daa2d5c: all six rooms hold HEALTHY, the damper jams at 09:15, A115 reaches SUSPECT
+# at 10:14 and is CONFIRMED as STUCK_DAMPER at 10:17, and COMPENSATING follows at 10:48. So the
+# classification in the timeline above is right again and its times are about half an hour early.
+# Do not read that agreement as the file being current.
+#
+# RUNBOOK.md section 4.4 holds the current measurement and section 5 holds the one question worth
+# preparing for, which is that a clean demo does not mean R-3 passes. Read that file, not this
+# block, before demonstrating anything.
+#
+# ---------------------------------------------------------------------------------------------
+# KNOWN LIMITATION: WHAT 60x STILL COSTS
+#
+# TIME_SCALE now reaches all seven project-authored processes, so the diagnosis chain is scaled
+# along with the plant and the demo may be narrated as a diagnosis demo. Measured from a live run
+# of this file on 2026-10-05, REAL_EPOCH 14:33:04Z, FAULT_SPEC at its default, ten containers:
+#
+#   * EXACTLY ONE room reached CONFIRMED. It was A115, the only room carrying an injected fault,
+#     classified STUCK_DAMPER, at simulated 09:45:00 — thirty simulated minutes AFTER its 09:15
+#     onset, not before it. SUSPECT came two cycles earlier at 09:43.
+#   * The other five rooms each produced exactly one decision row, the opening HEALTHY, and no
+#     fault event of any kind for the whole run. Their peak CUSUM over the run was 26.8, 34.6,
+#     38.3, 47.4 and 64.7 ppm against h = 150 and a SUSPECT threshold of 90.
+#   * Across all six rooms, the worst CUSUM reached BEFORE the onset was 61.5 ppm — a 2.4x margin
+#     on h, where the unscaled-consumer version of this file crossed h on the morning fill alone.
+#     A115's own statistic then ran to 38 234 ppm, which is not a marginal call.
+#   * The inner loop was seen working before it was seen failing: A115 climbed 420 -> 771 ppm by
+#     08:45 and dcv-controller issued seventeen damper commands between 08:46 and 09:14, modulating
+#     the damper between 0.156 and 0.373, all before the onset.
+#   * The supervisor degraded A115 at simulated 09:45:01, one second of simulated time after the
+#     confirmation, and raised its critical work order on BuildSim's /api/alerts, stamped with a
+#     simulated instant like everything else.
+#   * Wall clock: 112.7 real seconds from the simulator's first tick to the confirmed diagnosis
+#     (120.0 s from REAL_EPOCH itself). The whole run above fits inside four real minutes.
+#   * Drift: the simulator logged 60 simulated minutes every 60.00 real seconds, three times
+#     running, with the simulated instants 60 min apart to within 0.15 s. The plant and the
+#     diagnosis chain stay on one timeline for the length of a demo.
+#
+# That is the opposite of what the previous revision of this file measured, where four of six rooms
+# reached CONFIRMED within 90 real seconds, A145 was called STUCK_DAMPER with no fault injected at
+# all, and A115 was confirmed about a minute BEFORE its own onset. The cause was that TIME_SCALE
+# reached physics-simulator and nothing else: every other service built `new SystemClock()`, so
+# ZoneObserver.advance(now) integrated its prediction over wall-clock elapsed time against a plant
+# moving sixty times faster, predicted a sixtieth of the rise that actually happened, and put the
+# gap straight into the residual. A control run at TIME_SCALE 1 with the same START_AT and the same
+# FAULT_SPEC left all six rooms HEALTHY with a peak CUSUM of 17 ppm against h = 150, which is what
+# attributed those confirmations to the scaling rather than to the detector.
+#
+# What 60x still costs, and what to say out loud before narrating a timing number off it:
+#
+#   * the inner loop and the sensor run a one-simulated-minute cycle rather than a one-second one
+#     (see THE ARITHMETIC), so a detection delay read off this profile is quantised to simulated
+#     minutes and is not the delay the base profile would give;
+#   * the simulator must complete one tick — sixty Euler sub-steps over six rooms plus a BuildSim
+#     round trip — inside one real second. If the host cannot, the plant falls behind the shared
+#     clock and, because each tick then integrates the longer span it actually covers, the demo
+#     simply runs at an effective scale below 60 rather than diverging; what suffers is the one
+#     sample per simulated minute, which becomes one per longer interval. The check is the drift
+#     measurement above — `docker compose logs --timestamps physics-simulator`, sixty simulated
+#     minutes against sixty real seconds — and it must be made on the host the demo will run on;
+#   * the detection delays, false-alarm rates and R-1..R-7 numbers in the report come from the
+#     evaluation harness on a SimulatedClock, not from this profile. This profile is for watching
+#     the system work, not for measuring it;
+#   * TEAR THE STACK DOWN WHEN THE SCENARIO IS OVER. Left running past simulated 10:00, the same
+#     run above went on to confirm a SECOND room, A116A, STUCK_DAMPER at simulated 13:21 — three
+#     and a half simulated hours after A115 was confirmed, with no fault injected in it. That is
+#     NOT a timebase artefact and tuning a threshold would only hide it. The clocks were measurably
+#     in step throughout (60 simulated minutes per 60.00 real seconds for the whole run, and a
+#     co2-sensor container restarted at real 14:39:47 rejoined the timeline at simulated 14:28:46,
+#     the exact value the formula gives), and drift would have moved all five healthy rooms
+#     together where in fact the other four peaked at 29.9, 52.8, 62.9 and 67.9 ppm against
+#     h = 150 while A116A reached 3089 ppm. The mechanism is the monitor's flow belief: it believes
+#     A115's damper is where the controller commanded it, up to 0.49, when the fault holds it at
+#     0.15, so it believes A115 is taking air the other five are actually getting. Their
+#     predictions then run above the measurement, the residuals go negative, and the guarded lower
+#     arm eventually accumulates past h in whichever room's occupancy makes it there first. Nothing
+#     closes that belief gap after a STUCK_DAMPER confirmation — FaultMonitor closes it only for a
+#     blocked filter — and closing it is a change to the diagnosis chain, not to this file. Within
+#     the scenario window the demo is sound: at simulated 10:00 the five un-faulted rooms stood at
+#     26.8, 34.6, 38.3, 47.4 and 61.5 ppm, none of them having even reached the 90 ppm SUSPECT
+#     threshold, let alone h.
+# ---------------------------------------------------------------------------------------------
+
+# One epoch for the whole stack. `:?` is deliberate: see ONE NOTION OF TIME above.
+x-demo-timeline: &demo-timeline
+  TIME_SCALE: "60"
+  START_AT: "2026-10-09T07:45:00Z"
+  REAL_EPOCH: "${REAL_EPOCH:?generate it once for the whole stack from the invoking shell with date -u, so that every container anchors on the same real instant; see ONE NOTION OF TIME at the top of docker-compose.demo.yml}"
+
+services:
+  physics-simulator:
+    environment:
+      <<: *demo-timeline
+      FAULT_SPEC: "${FAULT_SPEC:-STUCK_DAMPER:A115:0.15:T+5400}"
+
+  co2-sensor:
+    environment: *demo-timeline
+
+  damper-actuator:
+    environment: *demo-timeline
+
+  dcv-controller:
+    environment: *demo-timeline
+
+  fault-monitor:
+    environment:
+      <<: *demo-timeline
+      CYCLE_SECONDS: "1"
+
+  supervisor:
+    environment: *demo-timeline
+
+  dashboard:
+    environment: *demo-timeline

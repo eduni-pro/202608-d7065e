@@ -1,0 +1,66 @@
+case,regime,arm,seed,zone,onset_minute,occupied_minutes,comfort_fraction,max_ppm_while_occupied,mean_ppm_while_occupied,monitor_state,latched_minute,plan_trim,plan_fan_speed,plan_achieved_gain,plan_worst_healthy_flow_deviation,plan_limitation,other_rooms_latched_and_frozen_at
+frozen at 15%,drawn weekday,no fault,1,A124,480,586,1.000000,751.082073,678.253919,HEALTHY,-1,,,,,no supervisor,none
+frozen at 15%,drawn weekday,"fault, no supervisor",1,A124,480,586,1.000000,802.328431,699.099424,HEALTHY,-1,,,,,no supervisor,none
+frozen at 15%,drawn weekday,"fault, supervisor",1,A124,480,586,1.000000,802.328431,699.099424,HEALTHY,-1,,,,,no plan was reached,none
+frozen at 15%,drawn weekday,no fault,2,A124,480,575,1.000000,796.519008,713.582446,HEALTHY,-1,,,,,no supervisor,none
+frozen at 15%,drawn weekday,"fault, no supervisor",2,A124,480,575,1.000000,933.582897,783.888871,COMPENSATING,660,,,,,no supervisor,none
+frozen at 15%,drawn weekday,"fault, supervisor",2,A124,480,575,1.000000,924.929468,780.403506,COMPENSATING,660,1.000000,0.700000,1.000000,0.000000,,none
+frozen at 15%,drawn weekday,no fault,3,A124,480,581,1.000000,825.339675,695.471665,HEALTHY,-1,,,,,no supervisor,none
+frozen at 15%,drawn weekday,"fault, no supervisor",3,A124,480,581,1.000000,945.776575,740.727369,COMPENSATING,867,,,,,no supervisor,none
+frozen at 15%,drawn weekday,"fault, supervisor",3,A124,480,581,1.000000,945.115158,739.534454,COMPENSATING,867,1.000000,0.700000,1.000000,0.000000,,none
+frozen at 15%,drawn weekday,no fault,4,A124,480,599,1.000000,801.981635,723.797359,HEALTHY,-1,,,,,no supervisor,none
+frozen at 15%,drawn weekday,"fault, no supervisor",4,A124,480,599,1.000000,919.474551,820.037585,COMPENSATING,567,,,,,no supervisor,none
+frozen at 15%,drawn weekday,"fault, supervisor",4,A124,480,599,1.000000,915.665274,814.583023,COMPENSATING,567,1.000000,0.700000,1.000000,0.000000,,none
+frozen at 15%,drawn weekday,no fault,5,A124,480,586,1.000000,769.011028,674.168551,HEALTHY,-1,,,,,no supervisor,none
+frozen at 15%,drawn weekday,"fault, no supervisor",5,A124,480,586,1.000000,845.441367,702.395186,HEALTHY,-1,,,,,no supervisor,none
+frozen at 15%,drawn weekday,"fault, supervisor",5,A124,480,586,1.000000,845.441367,702.395186,HEALTHY,-1,,,,,no plan was reached,none
+frozen at 15%,"drawn weekday, lower arm OFF",no fault,1,A124,480,586,1.000000,751.082073,678.253919,HEALTHY,-1,,,,,no supervisor,none
+frozen at 15%,"drawn weekday, lower arm OFF","fault, no supervisor",1,A124,480,586,1.000000,802.328431,699.099424,HEALTHY,-1,,,,,no supervisor,none
+frozen at 15%,"drawn weekday, lower arm OFF","fault, supervisor",1,A124,480,586,1.000000,802.328431,699.099424,HEALTHY,-1,,,,,no plan was reached,none
+frozen at 15%,"drawn weekday, lower arm OFF",no fault,2,A124,480,575,1.000000,796.519008,713.582446,HEALTHY,-1,,,,,no supervisor,none
+frozen at 15%,"drawn weekday, lower arm OFF","fault, no supervisor",2,A124,480,575,1.000000,933.582897,783.888871,COMPENSATING,660,,,,,no supervisor,none
+frozen at 15%,"drawn weekday, lower arm OFF","fault, supervisor",2,A124,480,575,1.000000,924.929468,780.403506,COMPENSATING,660,1.000000,0.700000,1.000000,0.000000,,none
+frozen at 15%,"drawn weekday, lower arm OFF",no fault,3,A124,480,581,1.000000,825.339675,695.471665,HEALTHY,-1,,,,,no supervisor,none
+frozen at 15%,"drawn weekday, lower arm OFF","fault, no supervisor",3,A124,480,581,1.000000,945.776575,740.727369,COMPENSATING,867,,,,,no supervisor,none
+frozen at 15%,"drawn weekday, lower arm OFF","fault, supervisor",3,A124,480,581,1.000000,945.115158,739.534454,COMPENSATING,867,1.000000,0.700000,1.000000,0.000000,,none
+frozen at 15%,"drawn weekday, lower arm OFF",no fault,4,A124,480,599,1.000000,801.981635,723.797359,HEALTHY,-1,,,,,no supervisor,none
+frozen at 15%,"drawn weekday, lower arm OFF","fault, no supervisor",4,A124,480,599,1.000000,919.474551,820.037585,COMPENSATING,567,,,,,no supervisor,none
+frozen at 15%,"drawn weekday, lower arm OFF","fault, supervisor",4,A124,480,599,1.000000,915.665274,814.583023,COMPENSATING,567,1.000000,0.700000,1.000000,0.000000,,none
+frozen at 15%,"drawn weekday, lower arm OFF",no fault,5,A124,480,586,1.000000,769.011028,674.168551,HEALTHY,-1,,,,,no supervisor,none
+frozen at 15%,"drawn weekday, lower arm OFF","fault, no supervisor",5,A124,480,586,1.000000,845.441367,702.395186,HEALTHY,-1,,,,,no supervisor,none
+frozen at 15%,"drawn weekday, lower arm OFF","fault, supervisor",5,A124,480,586,1.000000,845.441367,702.395186,HEALTHY,-1,,,,,no plan was reached,none
+frozen at 15%,"drawn weekday, no damper feedback",no fault,1,A124,480,586,1.000000,751.082073,678.253919,HEALTHY,-1,,,,,no supervisor,none
+frozen at 15%,"drawn weekday, no damper feedback","fault, no supervisor",1,A124,480,586,1.000000,802.328431,699.099424,HEALTHY,-1,,,,,no supervisor,none
+frozen at 15%,"drawn weekday, no damper feedback","fault, supervisor",1,A124,480,586,1.000000,802.328431,699.099424,HEALTHY,-1,,,,,no plan was reached,none
+frozen at 15%,"drawn weekday, no damper feedback",no fault,2,A124,480,575,1.000000,796.519008,713.582446,HEALTHY,-1,,,,,no supervisor,none
+frozen at 15%,"drawn weekday, no damper feedback","fault, no supervisor",2,A124,480,575,1.000000,933.582897,783.888871,COMPENSATING,660,,,,,no supervisor,none
+frozen at 15%,"drawn weekday, no damper feedback","fault, supervisor",2,A124,480,575,1.000000,924.929468,780.403506,COMPENSATING,660,1.000000,0.700000,1.000000,0.000000,,none
+frozen at 15%,"drawn weekday, no damper feedback",no fault,3,A124,480,581,1.000000,825.339675,695.471665,HEALTHY,-1,,,,,no supervisor,none
+frozen at 15%,"drawn weekday, no damper feedback","fault, no supervisor",3,A124,480,581,1.000000,945.776575,740.727369,COMPENSATING,867,,,,,no supervisor,none
+frozen at 15%,"drawn weekday, no damper feedback","fault, supervisor",3,A124,480,581,1.000000,945.115158,739.534454,COMPENSATING,867,1.000000,0.700000,1.000000,0.000000,,none
+frozen at 15%,"drawn weekday, no damper feedback",no fault,4,A124,480,599,1.000000,801.981635,723.797359,HEALTHY,-1,,,,,no supervisor,none
+frozen at 15%,"drawn weekday, no damper feedback","fault, no supervisor",4,A124,480,599,1.000000,919.474551,820.037585,COMPENSATING,567,,,,,no supervisor,none
+frozen at 15%,"drawn weekday, no damper feedback","fault, supervisor",4,A124,480,599,1.000000,915.665274,814.583023,COMPENSATING,567,1.000000,0.700000,1.000000,0.000000,,none
+frozen at 15%,"drawn weekday, no damper feedback",no fault,5,A124,480,586,1.000000,769.011028,674.168551,HEALTHY,-1,,,,,no supervisor,none
+frozen at 15%,"drawn weekday, no damper feedback","fault, no supervisor",5,A124,480,586,1.000000,845.441367,702.395186,HEALTHY,-1,,,,,no supervisor,none
+frozen at 15%,"drawn weekday, no damper feedback","fault, supervisor",5,A124,480,586,1.000000,845.441367,702.395186,HEALTHY,-1,,,,,no plan was reached,none
+frozen at 15%,design occupancy,no fault,1,A124,480,720,1.000000,956.164440,944.676782,COMPENSATING,481,,,,,no supervisor,A125A@0.59 A125@0.76 A116A@0.73 A115@0.79 A145@0.89
+frozen at 15%,design occupancy,"fault, no supervisor",1,A124,480,720,0.008333,1947.881721,1752.193119,COMPENSATING,481,,,,,no supervisor,A125A@0.37 A125@0.52 A116A@0.46 A115@0.47 A145@0.58
+frozen at 15%,design occupancy,"fault, supervisor",1,A124,480,720,0.000000,2628.692891,2206.168316,COMPENSATING,481,1.000000,0.735000,1.050000,0.050000,"every healthy damper is already at its minimum position, so the proportional split cannot be shifted and fan speed is the only lever and raising the fan above 74% would move the healthy rooms' own airflow by more than 5%, so the gain stops at 1.05",A125A@0.70 A116A@0.80 A115@0.84 A145@1.00
+frozen at 15%,design occupancy,no fault,2,A124,480,720,1.000000,958.746850,945.851919,COMPENSATING,481,,,,,no supervisor,A125A@0.73 A125@0.69 A116A@0.93 A115@0.92 A145@0.90
+frozen at 15%,design occupancy,"fault, no supervisor",2,A124,480,720,0.009722,1957.052726,1753.861325,COMPENSATING,481,,,,,no supervisor,A125A@0.51 A125@0.44 A116A@0.64 A115@0.63 A145@0.56
+frozen at 15%,design occupancy,"fault, supervisor",2,A124,480,720,0.025000,1611.015952,1499.570012,COMPENSATING,481,0.815950,0.772610,1.286844,0.050000,"the healthy dampers reached their minimum position, so the trim stops at 82% and raising the fan above 77% would move the healthy rooms' own airflow by more than 5%, so the gain stops at 1.29",A125@0.84
+frozen at 15%,design occupancy,no fault,3,A124,480,720,1.000000,956.843027,945.368793,COMPENSATING,481,,,,,no supervisor,A125A@0.77 A125@0.73 A116A@0.72 A115@0.73
+frozen at 15%,design occupancy,"fault, no supervisor",3,A124,480,720,0.008333,1934.799685,1753.136889,COMPENSATING,481,,,,,no supervisor,A125A@0.54 A125@0.49 A116A@0.44 A115@0.44
+frozen at 15%,design occupancy,"fault, supervisor",3,A124,480,720,0.055556,1552.143180,1434.126828,COMPENSATING,481,1.000000,1.000000,1.428571,0.000000,"every zone is faulted, so there is no healthy damper to trim and fan speed is the only lever and the fan is at its ceiling 100%, so the gain stops at 1.43",A125A@0.65 A125@0.63 A116A@0.53 A115@0.58 A145@0.61
+frozen at 15%,design occupancy,no fault,4,A124,480,720,1.000000,956.409440,944.897940,HEALTHY,-1,,,,,no supervisor,A125A@0.44 A125@0.77
+frozen at 15%,design occupancy,"fault, no supervisor",4,A124,480,720,0.009722,1950.136994,1754.780851,CONFIRMED,497,,,,,no supervisor,A125A@0.22 A125@0.53
+frozen at 15%,design occupancy,"fault, supervisor",4,A124,480,720,0.027778,1512.093587,1427.640173,COMPENSATING,494,0.647236,0.771759,1.622282,0.050000,"the healthy dampers reached their minimum position, so the trim stops at 65% and raising the fan above 77% would move the healthy rooms' own airflow by more than 5%, so the gain stops at 1.62",A125@0.52
+frozen at 15%,design occupancy,no fault,5,A124,480,720,1.000000,956.257235,944.309911,HEALTHY,-1,,,,,no supervisor,A125A@0.32 A116A@0.93
+frozen at 15%,design occupancy,"fault, no supervisor",5,A124,480,720,0.011111,1951.255835,1754.070311,COMPENSATING,493,,,,,no supervisor,A125A@0.38 A116A@0.64 A115@0.46
+frozen at 15%,design occupancy,"fault, supervisor",5,A124,480,720,0.000000,1601.834530,1526.721884,COMPENSATING,496,0.593097,0.806041,1.770370,0.050000,"the healthy dampers reached their minimum position, so the trim stops at 59% and raising the fan above 81% would move the healthy rooms' own airflow by more than 5%, so the gain stops at 1.77",A125A@0.37 A116A@0.72
+"genuinely shut, opening 0",drawn weekday,no air path,1,A124,480,587,0.175468,3695.816993,2074.396455,n/a,-1,,,1.000000,0.000000,"the faulted damper is shut, so there is no air path into the room and no trim or fan speed can multiply a flow of zero",none
+"genuinely shut, opening 0",drawn weekday,no air path,2,A124,480,576,0.145833,4697.124183,2651.801471,n/a,-1,,,1.000000,0.000000,"the faulted damper is shut, so there is no air path into the room and no trim or fan speed can multiply a flow of zero",none
+"genuinely shut, opening 0",drawn weekday,no air path,3,A124,480,582,0.173540,4050.065359,2316.842082,n/a,-1,,,1.000000,0.000000,"the faulted damper is shut, so there is no air path into the room and no trim or fan speed can multiply a flow of zero",none
+"genuinely shut, opening 0",drawn weekday,no air path,4,A124,480,600,0.108333,5647.450980,3181.679739,n/a,-1,,,1.000000,0.000000,"the faulted damper is shut, so there is no air path into the room and no trim or fan speed can multiply a flow of zero",none
+"genuinely shut, opening 0",drawn weekday,no air path,5,A124,480,587,0.163543,3504.967320,2101.863023,n/a,-1,,,1.000000,0.000000,"the faulted damper is shut, so there is no air path into the room and no trim or fan speed can multiply a flow of zero",none

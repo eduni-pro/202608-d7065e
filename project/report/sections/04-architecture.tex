@@ -1,0 +1,373 @@
+\section{Architecture}\label{sec:4}
+
+\emph{This section carries two subsections beyond the template's four, so its numbering runs one
+ahead from 4.3 onwards. The template's \textbf{4.3 Component diagram} is \S\ref{sec:4.4} here, and its
+\textbf{4.4 Design decisions and alternatives} is \S\ref{sec:4.5}. Nothing is omitted: \S\ref{sec:4.3} adds the
+authority separation and \S\ref{sec:4.6} how the architecture grows, both of which the architecture needs
+and neither of which the template has a slot for. The two code-level diagrams (C4 Level 4) and the
+documentation method are in Appendix \ref{sec:B}, with the reason only two of the former are drawn.}
+
+\subsection{Context diagram (C4 Level 1)}\label{sec:4.1}
+
+The context view fixes the \textbf{system boundary}. The system reads and commands the building
+only through BuildSim; the technician receives a work order and, by repairing the damper, is the
+only actor who can clear a latched case; occupants are sensed, not connected. Nothing internal
+appears.
+
+\begin{center}\includegraphics[width=0.58\textwidth]{figures/context.pdf}\end{center}
+\figcap{C4 System Context (Level 1), from \texttt{project/diagrams/context.d2}. Person and
+software-system elements; every arrow is a directed relationship labelled with its purpose and
+protocol.}
+
+\subsection{Container diagram (C4 Level 2)}\label{sec:4.2}
+
+Each box is one Docker container, one service in \texttt{docker-compose.yml} and one folder under
+\texttt{project/}. That 1:1 mapping is a hard constraint of the implementation plan, not a
+coincidence, and it is what keeps the diagram from drifting from the code: adding a box means
+adding a folder and a service, which is why the fan-speed command is applied by
+\texttt{damper-actuator} rather than by a container of its own (Section \ref{sec:4.5}).
+
+\textbf{\factComposeServicesCap{} compose services, \factAuthoredServices{} of them project-authored}: \texttt{physics-simulator},
+\texttt{co2-sensor}, \texttt{damper-actuator}, \texttt{dcv-controller}, \texttt{fault-monitor},
+\texttt{supervisor} and \texttt{dashboard}, plus \texttt{buildsim} from the \texttt{buildingsim/}
+folder of the same repository and the third-party images \texttt{mosquitto} and
+\texttt{timescaledb}, configured under \texttt{project/deploy/}. Two folders are deliberately
+\emph{not} containers (\texttt{shared/} is a library and \texttt{evaluation/} the offline harness),
+which is the entire reason the folder set is larger than the service set, and the mapping stays
+1:1 for all \factAuthoredServices{}.
+
+\begin{center}\includegraphics[width=\textwidth,height=0.70\textheight,keepaspectratio]{figures/container.pdf}\end{center}
+\figcap{C4 Container diagram (Level 2), from \texttt{project/diagrams/container.d2}. The dashed
+boundary is the system in scope; BuildSim is external; every arrow carries its protocol. The
+figure is service-for-service identical to \texttt{project/docker-compose.yml}.}
+
+The loop the figure describes is the one that makes this a cyber-physical system rather than a
+dashboard. \texttt{physics-simulator} reads actuator state from BuildSim, advances the physics and
+writes sensor values back; \texttt{co2-sensor} reads those values and publishes them;
+\texttt{dcv-controller} commands a damper position; \texttt{damper-actuator} applies it to
+BuildSim; and that actuator change alters the environment the simulator advances on its next tick.
+The outer loop rides the same bus one order of magnitude slower.
+
+The technician writes into the system in two places. One reports the equipment
+serviced to \texttt{dashboard}, which is the only exit from a latched case; the other is a small
+HTTP fault control surface on \texttt{physics-simulator} (\texttt{POST}, \texttt{GET} and
+\texttt{DELETE} on \texttt{/faults}) that injects, lists and clears a fault in the running
+plant. The second is what makes a recovery demonstrable rather than merely described: the
+scenario can be changed and the damper repaired without restarting the stack. Both ports are
+published on \texttt{127.0.0.1} only.
+
+\subsection{Authority separation: who may act}\label{sec:4.3}
+
+\textbf{\texttt{fault-monitor} raises events and never commands. \texttt{supervisor} is the only
+component that acts.} This is the single most important structural decision in the system and it
+is worth being explicit about why, because the two halves could obviously have been one process.
+
+\begin{itemize}
+\tightlist
+\item \textbf{A crashing monitor must not be able to stop ventilation.} Diagnosis is the
+  speculative, model-dependent, newest and least-trusted code in the system. Control is the part
+  that keeps people breathing. If they share a process, a null pointer in the classifier takes the
+  damper commands down with it. Split, the worst a dead monitor can do is stop producing
+  diagnoses, and ventilation continues on the inner rule.
+\item \textbf{A wrong diagnosis must not be able to command anything by itself.} The monitor's
+  output is a belief about the world, derived from a model I wrote about physics I also wrote. A
+  belief that can actuate is a belief that can degrade a healthy room. Separating them means every
+  action passes through a component whose only input is a \emph{confirmed} fault, and that
+  component is small enough to read in one sitting.
+\end{itemize}
+
+The separation is enforced structurally rather than by convention: the monitor's container has no
+publisher for any \texttt{commands/*} topic, and the single exception (the per-room active probe,
+which is a damper command) is owned by the supervisor precisely so that the rule has no
+exception. The same reasoning fixes ownership of the fan speed: \texttt{commands/\{ahu\}/fan-speed}
+is the compensation lever, so the supervisor owns it and the inner loop never writes it.
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.170}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.310}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.135}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.385}}@{}}
+\toprule
+\textbf{Container} & \textbf{Responsibility (one job)} & \textbf{Tech} & \textbf{Why it is a
+separate process} \\
+\midrule
+\endhead
+\texttt{physics-simulator} & Advance the CO₂ balance, the occupancy schedules, the air handler and
+the injected fault; write sensor values to BuildSim; take a fault in or out at runtime & plain Java 25 & It is the environment, not
+the system. Nothing else may write a sensor value, or the loop would not close through the
+building \\
+\texttt{co2-sensor} & Read six CO₂ values and the unit's fan power from BuildSim; judge data
+quality; publish & plain Java 25 & Emulates the devices. Restartable without touching control;
+its failure must produce silence, which is what R-4 detects \\
+\texttt{damper-actuator} & Validate and apply HVAC commands to BuildSim: six dampers and the one
+fan speed & plain Java 25 & The only writer of actuator state. A separate failure domain from
+whoever decided the command \\
+\texttt{dcv-controller} & Inner loop: damper position from CO₂, with hysteresis and a freshness
+check & Quarkus JVM & Must survive the monitor and the supervisor dying. Its rule changes on a
+different schedule from the diagnosis \\
+\texttt{fault-monitor} & Observer, residual, one-sided CUSUM, state machine, classifier.
+\textbf{Events only} & Quarkus JVM & See above: the least-trusted code must not hold actuator
+authority \\
+\texttt{supervisor} & Act on a confirmed fault: degrade, compensate, work order & Quarkus JVM &
+The only component that commands. Small, auditable, and its input is already a decision \\
+\texttt{dashboard} & Residual and fault state as BuildSim room layers, plus its own page and JSON
+& Quarkus JVM & Presentation must not be able to slow control. Every dependency is optional so the
+page still serves when the rest is down \\
+\texttt{mosquitto} & Decouple producers from consumers & Mosquitto 2 & One source feeds many
+consumers; a dead publisher goes silent rather than blocking \\
+\texttt{timescaledb} & Hot store for readings, commands, residuals, decisions, strategies &
+TimescaleDB pg16 & Every service only appends to it; the one window read is R-5's case replay,
+from the dashboard \\*
+\texttt{buildsim} & Building state and the 3D view & Go (unmodified) & External system; pinned by
+being in the same repository (ADR-0007) \\
+\bottomrule
+\end{longtable}
+
+\subsection{Component diagram (C4 Level 3) and the code structure}\label{sec:4.4}
+
+\texttt{fault-monitor} is the one container complex enough to deserve its own picture, and
+\textbf{Appendix \ref{sec:B.1}} draws it: every box one \emph{component}, labelled with the exact type name so
+a reader can grep for it, with the \texttt{boundary} group holding every framework and transport type
+and \texttt{control} and \texttt{entity} depending on nothing outward. What matters in the body is
+the rule the figure obeys.
+
+
+\textbf{BCE inside hexagonal.} Packages are organised by \textbf{business component}
+(\texttt{ventilation/}, \texttt{diagnosis/}, \texttt{supervision/}, \texttt{physics/},
+\texttt{devices/}, \texttt{dashboard/}), and each business component has the same three layers:
+
+\begin{itemize}
+\tightlist
+\item \texttt{entity/}: the domain model as Java records, with invariants enforced in compact
+  constructors. \texttt{FanSpeed} cannot hold 1.4; \texttt{DamperPosition} cannot hold $-0.1$;
+  \texttt{AirHandlingUnit} cannot be commanded outside its range. An illegal state is
+  unconstructible rather than merely untested.
+\item \texttt{control/}: the business logic: the observer, the residual accumulator, the state
+  machine, the classifier, the compensation solver, the hysteresis rule. No framework type appears
+  here, which is why all of it is unit-testable without a broker, a database or a container.
+\item \texttt{boundary/}: every adapter: Paho for MQTT, JDBC with native SQL for TimescaleDB, an
+  HTTP client for BuildSim, Quarkus scheduling and health.
+\item \texttt{event/}: \textbf{a fourth package, in \texttt{shared} only}, and it is named here
+  because a reader who opens \texttt{shared/src/main/java/se/ltu/d7065e/shared/} finds three
+  directories and this description otherwise promises two. It holds \texttt{DomainEvent}, its eight
+  permitted records and \texttt{Topics}. It is not a boundary (it carries no framework import),
+  and it is not one component's entity layer, because the alternative to a shared package is a
+  dependency from every subscriber onto every publisher. ADR-0005 and ADR-0006 record the choice.
+\end{itemize}
+
+\textbf{The dependency rule} is what makes this hexagonal rather than merely three-layered: the
+arrows point \emph{inward}. \texttt{control} and \texttt{entity} never reference
+\texttt{boundary}; instead the core declares \textbf{ports} in domain vocabulary. There are seven,
+all of them in \texttt{shared}'s \texttt{control} package and nothing else in it:
+\texttt{ReadingStreamPort}, \texttt{EventPublisherPort}, \texttt{ResidualJournalPort},
+\texttt{BuildingStatePort}, \texttt{BuildingOverlayPort}, \texttt{OccupancyPort} and
+\texttt{ClockPort}. And \texttt{boundary} implements them. One adapter may implement more than
+one: \texttt{MqttAdapter} is a single class satisfying both \texttt{ReadingStreamPort} and
+\texttt{EventPublisherPort}, because subscribing and publishing are one broker session. The payoff is concrete and is not architectural tidiness for
+its own sake: because the clock is a port, the evaluation harness can drive seven simulated days
+through the same classes the containers run, in minutes; and because the reading stream is a port,
+every control-layer test runs with an in-memory fake instead of Docker.
+
+Two honest notes on the structure. There is \textbf{no DTO or mapper layer}: domain records are
+serialised directly, and translation exists only where the schema is not mine (BuildSim and the
+journal). That is justified by lock-step single-author deployment and is wrong the moment any
+consumer deploys independently: it makes a domain rename a wire-format break. And
+\texttt{shared/} holds both the domain language and the three infrastructure adapters, so it is a
+library two kinds of thing live in; splitting it would add a module for no behavioural gain today. Below
+this level, two places in the system are claims about the \emph{shape of the code} rather than about
+the physics, and both are hidden inside a single Level 3 box: \textbf{Appendix \ref{sec:B.2}} draws them
+and states the criterion that admitted exactly those two.
+
+\subsection{Design decisions and alternatives}\label{sec:4.5}
+
+Each row states the choice, the alternative genuinely considered, the requirement it serves and
+the price paid. A decision with no rejected alternative is only an assumption. The full records
+are in \texttt{project/decisions/}.
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 8\tabcolsep) * \real{0.165}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 8\tabcolsep) * \real{0.155}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 8\tabcolsep) * \real{0.185}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 8\tabcolsep) * \real{0.285}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 8\tabcolsep) * \real{0.210}}@{}}
+\toprule
+\textbf{Decision} & \textbf{Chosen} & \textbf{Alternatives considered} & \textbf{Justification
+(requirement)} & \textbf{Trade-off accepted} \\
+\midrule
+\endhead
+Language and runtime (ADR-0002) & Java 25 on Quarkus, one container per component & \textbf{Go,
+which the course recommends}; Erlang/OTP & The course allows another language \emph{if strongly
+motivated}, and the motivation is the assessment itself: the oral is individual, unaided and
+caps the grade at what can be defended at a whiteboard, so fluency is an architectural input
+rather than a preference. Erlang was weighed properly and fails on the requirement: OTP
+supervision runs \emph{inside} the BEAM, so using it as intended puts N sensors in one Unix
+process and violates the one-process-per-device rule, while one node per sensor is the heaviest
+possible host for a single actor & A larger baseline container footprint than Go on the trivial
+sensor processes. ADR-0002 undertook to \textbf{measure} this rather than argue it, because
+footprint per container feeds the breaking-point experiment directly (§\ref{sec:11}, R-6); the figure was
+never taken, so it stands as accepted rather than measured \\
+Coupling topology (ADR-0008) & One shared air handler, a damper per room, proportional split &
+Six independent rooms with a fan each; shared handler \emph{plus} inter-room air exchange &
+Creates a real cross-room signal (plant fan power) and makes R-7 something the supervisor must
+earn rather than something the topology gives away (R-2, R-7) & A seventh simulated element and
+its invented fan curve; compensation cannot reach a damper stuck fully shut \\
+Monitor/supervisor split & Two containers, events one way & One ``autonomous service'' &
+A crashing monitor cannot stop ventilation; a wrong diagnosis cannot command (R-4). \textbf{Measured
+rather than assumed}: T-27 kills each component in turn; 23 of 23 assertions in one JVM, and at
+container level five of six rooms reach \texttt{BLIND} within 12 s while ventilation continues
+(§\ref{sec:11.2}, Appendix \ref{sec:G}) & One more process, and a topic hop in the latency budget \\
+Detection statistic & One-sided CUSUM on the residual, \texttt{k} = 30 ppm, \texttt{h} = 150 ppm
+& Raw residual threshold; two-sided CUSUM; learned one-class model & Accumulation catches a small
+persistent bias long before a threshold fires, and the spike measured 16.7 σ separation (R-1, R-3).
+\textbf{The learned alternative was not merely reasoned about, it was built and measured}: on a
+held-out fault-free week T-29's contender raises \textbf{11.25} false alarms per week against the
+rule's \textbf{0.55}, and it was dropped on that evidence (§\ref{sec:11.2}, Appendix \ref{sec:F}) & One-sided means a
+sensor drifting \emph{low} is invisible (§\ref{sec:13}) \\
+Inner control law & Plain rule with hysteresis and a freshness check & PID; model-predictive
+control & The outer loop must model the inner one, so inner complexity becomes observer model
+error (R-1) & Less efficient ventilation than an optimiser would give \\
+Clearing policy & Latch; only an explicit service event clears & Clear when the residual falls &
+Compensation shrinks the residual that found the fault, so a self-clearing monitor would
+oscillate with a broken damper still broken (R-2) & A false positive is sticky, and
+a false positive costs one technician visit and one HTTP request (§\ref{sec:13}) \\
+Fan-speed ownership & \texttt{supervisor} publishes it; \texttt{damper-actuator} applies it & A
+\texttt{fan-actuator} container of its own & The fan is the compensation lever, so the inner loop must
+not write it; a container of its own for one PUT is not worth a box, a folder and a service (plan
+constraint 4) & \texttt{damper-actuator}'s name is now narrower than its job \\
+Transport & MQTT pub/sub for readings, commands and fault events & Direct REST between components;
+Kafka & One sensor feeds controller, monitor, store and dashboard; a dead publisher goes silent
+rather than blocking (R-4) & A broker to run; and without retained replay a monitor restart loses
+its residual history \\
+Service state across a restart (ADR-0012) & One JSON document per service on its own volume &
+Replaying the journal to rebuild state; a second database (MongoDB was adopted and then rejected);
+accepting the loss & The journal is an append-only record of \emph{what happened} and this is
+\emph{what is believed now}: different lifetimes, and one of the three things needed (the pinned
+damper belief) exists nowhere in the journal but as prose. A restarted monitor kept no latch, and a
+restarted supervisor \emph{erased} live work orders & Host-local: the file follows the volume, not
+the service, so a multi-host deployment must replace it. No history and no query: correct for
+state, wrong for evidence, which is why the journal is untouched \\
+Hot store & TimescaleDB with native SQL over six hypertables & Plain PostgreSQL; files; an ORM &
+The residual window query per \texttt{caseId} is the hot path, and R-5 needs provenance on every
+row & Native SQL is hand-maintained; one more stateful service \\
+Runtime & Java 25; Quarkus JVM for the four scheduled services, plain \texttt{java -jar} for the
+three device processes & Quarkus everywhere; Spring Boot; native images in development & Scheduling,
+config and health are worth a framework; a 40-line sensor loop is not (ADR-0002) & Two startup
+styles to understand in one repository \\
+Architecture style & BCE inside hexagonal, ports in the core & Layered by technology; framework
+annotations in the core & Lets the evaluation harness drive the same classes through a simulated
+clock, and keeps control-layer tests container-free (R-6, R-3) & More indirection than a small
+system strictly needs \\
+Fault injection point & Between the command and its physical effect & At the sensor; at the
+controller & The command record and the physics must disagree, or there is nothing to detect
+(R-1) & The fault model is mine, and so is the detector (§\ref{sec:13}) \\
+Healthy-room airflow bound (ADR-0009) & One symmetric 5 \% allowance, kept, with the two sides
+separated in the code because they are different quantities & An asymmetric over-supply allowance
+at 0.10, 0.20, 0.43 or unbounded; a per-room trim instead of one common factor & Swept closed-loop,
+the allowance buys R-2 zero occupied minutes at every setting (0.024 and 0 of 5 seeds throughout)
+because with every healthy damper on its floor the fan lever is not selective and the plant caps it
+at 1.43 against the 2.0–3.3 the regime asks (R-2, R-7) & R-2 keeps a named failure instead of a
+bought pass, at 134 ppm of mean concentration the plant could have delivered \\
+Plausibility guards are bounds, not filters (ADR-0010) & Drive the guarded lower arm off the
+outdoor clamp, and re-anchor the other five rooms when a confirmation pins a damper & Gate both
+arms on the judging window; never let a re-anchor lower the ceiling; clamp at the design generation
+alone; raise $h$; fix the lower arm only & \texttt{correctTowards} pulled both guards 30 \% of the
+way onto every reading, so each was a filter and each arm ran on a filter error rather than on a
+residual; correcting the lower arm's half halves R-3's rate and moves no other requirement
+(R-3) & R-3 is still not met, and the variant that does meet it is left on a branch because it
+costs R-1's closed-loop arm 15 of 20 against 1 of 20, T-27 and R-7 \\
+\bottomrule
+\end{longtable}
+
+\subsection{How this architecture grows}\label{sec:4.6}
+
+Three growth directions are worth separating, because the architecture answers them very
+differently: \textbf{more zones on one plant}, \textbf{more plants or more buildings}, and
+\textbf{new or replaced services}. For the first two the limits are measured and the bottleneck is
+named. For the third the honest answer is not a list of seams but the one boundary that
+\emph{looks} like a seam and is not, so this subsection ends there rather than beginning there.
+
+\textbf{More zones on one plant.} Two ceilings exist and they are never quoted as one. The
+harness reaches \textbf{25\,600 zones at a p95 of about 6 s} inside the 60 s interval, fits
+p95 = $1.196\times10^{-8}\,n^{1.97}$ with $r^2$ = 0.9991, and extrapolates the 60 s crossing to
+roughly \textbf{86\,000 zones} (§\ref{sec:11}, R-6). The \emph{deployed} ceiling is \textbf{58 zones}, and it
+is BuildSim's floorplan (the simulator will not host equipment in a room its level-0 plan does not
+have), not anything about the monitor. The exponent 1.97 is the useful part: the saturated element
+is \texttt{AhuFlowModel.believedFlowTo}, which sums every damper's opening to find the denominator
+of the proportional split and is therefore $\Theta(n)$ per zone and $\Theta(n^2)$ per cycle. The
+harness names it in its own output rather than leaving it to be inferred
+(\texttt{ScalingExperiment.java:122}). It is also the cheapest thing in the system to fix: the
+denominator is one scalar that changes only when a damper moves, so caching it and invalidating on
+change makes the cycle $\Theta(n)$ and moves the crossing out by orders of magnitude. That work is
+not done because 58 zones is the ceiling that binds, and optimising past a limit the deployment
+cannot reach would be sophistication with nothing behind it.
+
+\textbf{More plants, or more buildings.} \textbf{The shard boundary is one air-handling unit}, and
+it is a shard rather than a partition for a structural reason: the only cross-room term in the
+whole design is the flow-split denominator above, and that sum runs over one plant's dampers.
+Two air handlers share no term, so two monitors over two AHUs compute exactly what one monitor over
+each would: no coordination, no distributed state, no consensus. The wire is already shaped for
+it: \texttt{Topics.fanPower(AhuId)} and \texttt{Topics.fanSpeedCommand(AhuId)} take the handler as a
+parameter, so \texttt{readings/\{ahu\}/fan-power} is per-plant today and a second AHU needs no
+topic design at all. One \texttt{fault-monitor}, one \texttt{supervisor} and one
+\texttt{dcv-controller} per AHU, sharing the broker and the journal, is the whole scaling story for
+a building, and the per-zone tables already carry the zone, so the journal needs no change either.
+What is \emph{not} shaped for it is named below.
+
+\textbf{New or replaced services.} Every boundary at which an implementation can be swapped is
+inventoried in \texttt{project/diagrams/seams.md}, which separates two kinds that are routinely
+confused. A \textbf{contract seam} is run-time and language-agnostic (an MQTT topic plus the
+payload record on it), so anything publishing the right topic with the right payload is
+substitutable whatever language it is written in, and the far side cannot tell; this is where a
+physical sensor or a real DDC panel is installed. A \textbf{port seam} is compile-time and
+same-JVM: a Java interface in \texttt{shared/control}, declared in the core's vocabulary rather
+than mirroring an adapter's API (ADR-0005), swapped in a composition root with no change to
+\texttt{control} or \texttt{entity}. \textbf{A port seam cannot install a device, and a contract
+seam cannot be unit-tested with a stub}, which is why the system has both.
+
+\begin{center}\includegraphics[width=0.92\textwidth]{figures/seams-overview.pdf}\end{center}
+\figcap{The contract seams, from \texttt{project/diagrams/seams-overview.d2}. Hexagons are
+contract seams at the wire; the tier colouring is in the legend below. The per-boundary figures
+(\texttt{seams-plant}, \texttt{seams-transport}, \texttt{seams-storage}, \texttt{seams-clock},
+\texttt{seams-topology}) carry the port seams and the non-seams.}
+
+\begin{center}\includegraphics[width=0.52\textwidth]{figures/seams-legend.pdf}\end{center}
+\figcap{Tier 1 clean: replace one side, nothing else changes. Tier 2: genuinely substitutable, but
+something named must change with it or be inherited. Tier 3: looks like a boundary on the container
+diagram, and crossing it would mean changing code on both sides. \textbf{The Tier 2 conditions and
+the Tier 3 entries are the content}. Twelve seams all claimed clean would be a prettier set of
+figures and a worse one.}
+
+Two questions an examiner is entitled to ask are each answerable by pointing at one line.
+\emph{Where do we cut to replace the virtual CO\textsubscript{2} sensor with a real one in the
+ceiling?} At \textbf{K1}, the wire, where \texttt{readings/\{zone\}/co2} carries
+\texttt{ReadingObserved}, not at \texttt{BuildingStatePort}, because that is a Java interface on
+this classpath and a device in a ceiling is not a Java class. K1 is Tier 2 and the replacement
+inherits three stated conditions: it must judge its own data quality, because nothing downstream
+can; it must publish fan power too, or nothing does; and it must stamp \texttt{ObservedAt} on the
+shared timeline. \emph{Where do we cut to replace the supervisor?} At \textbf{K2}, whose three
+published topics are the complete \emph{control} contract, provided the replacement also inherits
+two obligations that are not topics at all: it must be the only writer of BuildSim's alert
+collection, and it must journal its own decisions.
+
+\textbf{And the part that is not a seam, which is the real answer to how this grows.}
+\texttt{Topology.java} hard-codes the plant: the six rooms with their areas and design flows, the
+nominal flow and power, the normal fan speed, the damper floor, the outdoor and comfort
+concentrations, the generation per person, both noise sigmas, and the CUSUM slack and limit. It is
+an interface of static members in \texttt{shared/}, \textbf{with no port in front of it and no
+injection point}, and \textbf{34 main-source files import it}. And the readers are
+\texttt{control} classes rather than adapters, which is precisely what makes it unsubstitutable.
+A real corridor has measured design flows, a measured air handler and a measured sensor noise
+floor, so every one of those numbers is edited in one file in the library all \factAuthoredServices{}
+services link, which recompiles and redeploys all \factAuthoredServices{}. \texttt{Topology.AIR\_HANDLER} is likewise a single
+literal, \texttt{AhuId.of("AHU-A120")}, so the per-AHU sharding the topics already support is
+blocked by one constant rather than by any part of the design.
+
+The sharpest consequence is not the redeploy. \textbf{The CUSUM slack and limit are tuned to the
+sensor noise sigma} and the file says so in place: a real sensor with a different noise floor does
+not merely change a constant, it \textbf{invalidates the spike that measured $k$ and $h$ together}
+(16.7 σ separation, 0 of 20 false alarms, §\ref{sec:11.1}) until that spike is redone against the real
+instrument. That is the honest cost of taking this architecture to a real building, and it is a
+\emph{commissioning} cost rather than a software one. If one thing were done first it would be
+this: put the plant behind a configuration port so the numbers are data rather than code, and make
+the tuning of $k$ and $h$ an explicit function of the measured noise floor instead of a pair of
+constants that happen to match it.\label{sec:4end}

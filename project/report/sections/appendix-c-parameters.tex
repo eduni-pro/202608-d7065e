@@ -1,0 +1,103 @@
+\section{The six rooms, and the physical model's invented parameters}\label{sec:C}
+
+\subsection{The six rooms}\label{sec:C.1}
+
+The room set of \S\ref{sec:6.1}. Volume is floor area × the assumed 3 m ceiling; design flow is the Swedish
+workplace guideline at the room's intended occupancy.
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 10\tabcolsep) * \real{0.13}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 10\tabcolsep) * \real{0.09}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 10\tabcolsep) * \real{0.10}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 10\tabcolsep) * \real{0.30}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 10\tabcolsep) * \real{0.11}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 10\tabcolsep) * \real{0.14}}@{}}
+\toprule
+\textbf{Zone} & \textbf{Area} & \textbf{Volume} & \textbf{Intended use and schedule} &
+\textbf{Design occ.} & \textbf{Design flow} \\
+\midrule
+\endhead
+\texttt{A125A} & 18.0 m² & 54.0 m³ & single office, 08–17 with a lunch dip & 1 & 13.3 l/s \\
+\texttt{A125} & 29.8 m² & 89.4 m³ & two-person office, staggered arrival & 2 & 24.4 l/s \\
+\texttt{A116A} & 33.0 m² & 99.0 m³ & project room, intermittent use & 4 & 39.6 l/s \\
+\texttt{A115} & 44.0 m² & 132.0 m³ & meeting room, booked 1-hour slots & 10 & 85.4 l/s \\
+\texttt{A124} & 76.5 m² & 229.5 m³ & open-plan office, continuous daytime & 8 & 82.8 l/s \\
+\texttt{A145} & 74.0 m² & 222.0 m³ & seminar room, booked 2-hour slots, empty between & 20 &
+165.9 l/s \\
+\textbf{Σ} & \textbf{275.3 m²} & \textbf{825.9 m³} & & \textbf{45} & \textbf{411.4 l/s} \\
+\bottomrule
+\end{longtable}
+
+\subsection{Every invented parameter, and what it decides}\label{sec:C.2}
+
+Every parameter of \S\ref{sec:6.2}, its derivation and the requirement it is first-order on. \S\ref{sec:13.3} says
+which of them the invention invalidates and which it does not.
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.2146}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.1561}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.4097}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.2146}}@{}}
+\toprule
+\textbf{Parameter} & \textbf{Value} & \textbf{Derivation (all invented, none picked)} &
+\textbf{Sensitivity} \\
+\midrule
+\endhead
+$Q_\text{nom}$ & 0.59 m³/s (590 l/s) & The sum of the six design flows, 411.4 l/s, divided by the
+normal speed 0.7 and rounded up, so the plant covers the simultaneous design condition at the speed
+it runs rather than only at $s=1$ &
+First-order on R-2: at 0.7 it leaves 0.4 \% spare, which is the coupling; the 43 \% up to $s=1$ is
+the compensation budget, not normal slack \\
+$P_\text{nom}$ & 400 W & $0.59\ \text{m}^3/\text{s} \times 400$ Pa $\div\ 0.6$ fan efficiency
+$\approx 393$ W, rounded up; 137 W at the normal speed & Near-cosmetic: the classifier tests a
+\emph{ratio} against the affinity law, so 400 W cancels \\
+Affinity exponent & 3 & Textbook fan law, asserted rather than derived & Worse than cosmetic:
+generator and detector share it, so the power test cannot fail except through $\beta$ \\
+Fan speed $s$ & $[0.2, 1.0]$, normally 0.7 & The compensation lever; the invariant on
+\texttt{FanSpeed} & First-order on R-2: 0.7 is the 43 \% headroom the lever uses \\
+$A_i$ (authority) & $\propto$ design flow & So that at the normal speed 0.7 with all dampers open
+each room gets its design flow $\times\ 413/411.4 \approx 1.004$ & First-order on R-1: the observer
+recovers design occupancy as $(A_i - 0.35\,\text{area})/7$ \\
+\texttt{minimumDamperPosition} & 0.15 & Ventilation never fully closes; the floor a
+demand-controlled damper holds during occupied hours & First-order on R-2: it is also the position
+a ``stuck shut'' damper sticks at \\
+Ceiling height & 3.0 m & The floorplan carries no height & First-order on R-1: every time constant
+is $V/Q$ and $V$ is linear in it; a 2.7 m ceiling makes all six rooms 10 \% faster \\
+$C_\text{out}$ & 420 ppm & Outdoor concentration & Sets the residual's floor \\
+$g$ & $5\times10^{-6}$ m³/s per person & CO₂ generation per person & First-order on R-1 through
+the prediction's generation term \\
+Comfort limit & 1000 ppm & The limit R-2 is written against & Definitional \\
+Sensor noise $\sigma$ & 30 ppm & The spike's assumption (§\ref{sec:11.1}) & Sets $k$ and $h$ directly \\
+\bottomrule
+\end{longtable}
+
+\subsection{The REST contract against BuildSim}\label{sec:C.3}
+
+The calls \S\ref{sec:5.2} names. BuildSim's schema is not mine, so this is the one place a translation layer
+exists.
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.2296}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.2009}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.2105}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.3540}}@{}}
+\toprule
+\textbf{Caller} & \textbf{Direction} & \textbf{Purpose} & \textbf{Why it is REST and not a
+message} \\
+\midrule
+\endhead
+\texttt{physics-simulator} → BuildSim & write sensor values & Make CO₂ and fan power visible to
+the sensors and the 3D view & One-to-one write whose success the caller must know \\
+\texttt{physics-simulator} ← BuildSim & read actuator state & Close the physical loop: the damper
+and fan positions the physics must honour & The simulator must read the state that actually
+applied, not the command that was sent \\
+\texttt{co2-sensor} ← BuildSim & read sensor value & Sample the environment & A device reads its
+own sensor \\
+\texttt{damper-actuator} → BuildSim & write actuator state & Apply a validated command & BuildSim
+is the single source of truth for actuator state \\
+\texttt{supervisor} → BuildSim & write alert & The work order the technician sees & An operator
+artefact, not a stream \\
+\texttt{dashboard} → BuildSim & write room layers & Colour the floorplan by CO₂, residual, CUSUM
+or state & Idempotent repaint every 5 s \\
+\bottomrule
+\end{longtable}

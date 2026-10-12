@@ -1,0 +1,284 @@
+\section{Risks and critical reflection}\label{sec:13}
+
+This section is the honest account, and it is deliberately the least flattering part of the
+document. Several of the findings below are not disclosures but \emph{functional holes} (things
+that do not work, rather than things that are merely unvalidated), and they are stated first
+because they are the ones worth the most to find.
+
+\subsection{Four functional holes, two of which are now closed}\label{sec:13.1}
+
+Four holes, each with its verdict; \textbf{Appendix \ref{sec:I.1}} carries the mechanism behind every one.
+
+\textbf{1. A damper stuck \emph{wide open} is invisible at the deployed setting.} The statistic is
+two-sided, and the deployed \emph{guarded} lower arm catches the low-side fault with a safety
+consequence: a sensor drifting downward, which under-ventilates an occupied room and betrays
+itself by reading below the 420 ppm outdoor level. It cannot catch a damper stuck open, because
+``everybody left the room'' explains a room that stopped getting stuffier at least as well and
+nothing inside a ten-minute judging window separates them. The unguarded arm sees both and costs more
+false confirmations than R-3 allows. \textbf{An observer with no occupancy signal cannot have both,
+and the choice was made in R-3's favour.}
+
+\textbf{2. \texttt{serviced()} had no transport, and now it has one. Closed.} The only exit from a
+latched case was unreachable in deployment, so a false latch was \textbf{permanent}.
+\texttt{ServiceReported} now travels on \texttt{service/\{zone\}} validated against the open case,
+and the dashboard exposes
+\texttt{POST /api/zones/\allowbreak \{zone\}/cases/\allowbreak \{caseId\}/serviced}. The whole
+\texttt{CONFIRMED} → \texttt{COMPENSATING} → \texttt{SERVICED} → \texttt{WARMUP} →
+\texttt{HEALTHY} lifecycle is tested end to end. This matters most to §\ref{sec:13.8}, whose argument is that a false positive
+costs one technician visit, an argument that was being made against a system where it cost that
+visit \emph{and} a permanently wrong work order.
+
+\textbf{3. The ambiguous fault is absent from the model, so the classifier's hardest discrimination
+is never tested.} The ambiguity a real building would produce (a partial obstruction in one duct
+branch, reading as both a partly stuck damper and a partly blocked filter) \textbf{is not in the
+fault model at all}, and the enumeration cannot express it, so a clean confusion matrix would have
+been weak evidence rather than strong.
+
+\textbf{4. And worse than untested: the \texttt{BLOCKED\_FILTER} branch is unreachable with this
+physics.} This is the finding I least expected and would lead with in the oral; a unit test pins the
+outcome as \texttt{UNCLASSIFIED} so it cannot rot. Two structural reasons, neither a bug to patch:
+the proportional split only redistributes a fixed total, so no command the observer judges moves all
+six residuals the same way; and the quasi-steady generation estimate absorbs the blockage exactly.
+True flow low by $(1-\beta)$, believed flow high by the same factor, so only the time constant
+differs. The work order still carries the measured plant power excess, which is right for a case the
+system cannot prove and is not a working three-way classifier. \textbf{Of the mechanisms this project
+set out to name, exactly one is classified: \texttt{STUCK\_DAMPER}}. \texttt{BLOCKED\_FILTER} can
+be pointed at but never confirmed, and \texttt{SENSOR\_DRIFT} is never emitted at all, 0 of 76 runs
+from a drift ramp and 0 of 76 from a step offset (§\ref{sec:7.3}, §\ref{sec:11.5}).
+
+\subsection{The detector is evaluated against its own generator}\label{sec:13.2}
+
+The simulator produces exactly the faults the monitor looks for, using the same mass balance and the
+same flow split. That invalidates the \textbf{detection-performance numbers as transferable
+quantities} (R-1's delay, R-3's false-alarm rate and R-2's comfort percentile are conditional on my
+own fault definition) and does \emph{not} invalidate the \textbf{architectural claims}, which are
+properties of code: that the monitor never commands, that a latched case has one exit, that stale
+readings give \texttt{BLIND} with zero fault events, that a confirmed fault changes strategy without
+stopping ventilation. A simulator is the right instrument for those, as it is for R-5 and R-6. Closing
+the gap needs measured fault data from a real air handler with service records, or at minimum a second
+fault model written independently of the detector. Neither was in scope, and the gap is no smaller for
+that.
+
+\subsection{Every physical parameter is invented}\label{sec:13.3}
+
+The full list, so it can be judged rather than taken on trust: the 3 m ceiling, from which every
+volume is \texttt{area} $\times$ 3.0; the opening law $a_i = p_i A_i$ with authority proportional to
+design flow, and the proportional split; $Q_\text{nom}$ = 0.59 m³/s; $P_\text{nom}$ = 400 W from an
+assumed 400 Pa at 0.6 efficiency; \texttt{minimumDamperPosition} = 0.15; the \textbf{affinity
+exponent 3}, asserted rather than derived; $\beta$, which has no design value at all and is only a
+fault-injection magnitude; drift as an uncapped linear ppm/hour ramp; and the whole occupancy
+schedule.
+
+Which of them matter, and how, is the useful part. \textbf{First-order on R-1}: ceiling height,
+because every time constant is $V/Q$ and $V$ is linear in it, so a 2.7 m ceiling makes all six rooms
+10 \% faster; the design-flow rule, because the observer recovers design occupancy from the
+authority and drives suspicion against that ceiling; and the schedule, because a room empty most of
+the day hides its own fault. \textbf{First-order on R-2}: \texttt{minimumDamperPosition} and a
+sizing that leaves $413/411.4 \approx 1.004$ at the normal speed and 43 \% up to $s=1$, which
+together decide whether compensation has anything to work with. \textbf{Near-cosmetic}: $P_\text{nom}$, because the classifier tests a \emph{ratio}
+against the affinity-law prediction, so 400 W cancels. \textbf{Worse than cosmetic}: the exponent
+3, because the generator and the detector share it, so the blocked-filter power test cannot fail
+except through $\beta$. Removing this gap needs a commissioning report: a measured fan curve, a
+measured pressure drop, a people counter.
+
+One of them was corrected on measurement rather than argued, and it belongs here because the first
+choice was wrong. $Q_\text{nom}$ was initially the design total rounded up, which meets the
+simultaneous design condition only at $s=1$, the one speed compensation needs to borrow from. Run
+at the normal 0.7 that plant delivers 294 l/s against a 411.4 l/s design total, and the consequence
+was not subtle: with \textbf{nothing broken} no room could be held below 1000 ppm at design occupancy
+and the monitor confirmed a fault in all six, because a uniformly starved building looks exactly like
+a faulty one. Sizing from $\Sigma$ design $\div\ 0.7$ separates the two jobs the rating was doing at
+once. \textbf{The fix is not free, and this is the honest cost: margin masks faults.}
+\textbf{Appendix \ref{sec:I.2}} gives the correction, its measured price (a filter blocking 35 \% no longer
+starves the rooms enough for the monitor to confirm it) and the no-fault arm that now holds every
+occupied minute at or below 1000 ppm at design occupancy on all five seeds, which is the figure the
+earlier sizing scored 0.000 on.
+\subsection{The CUSUM margin is thin, R-3 does fail, and the margin was the symptom rather
+than the cause}\label{sec:13.4}
+The worst healthy seed peaked at 149.1 ppm against $h$ = 150 ppm at $\sigma$ = 30 ppm, over three
+hours in one room: a \textbf{0.9 ppm margin}, with the next seed at 91.6 ppm, so it is a tail draw and
+not a design property. R-3 asks for the same statistic across six rooms over seven days, far more
+samples, and the measurement contradicts the analytic run length: over 20 fault-free simulated weeks
+of all six rooms the monitor raises \textbf{0.55 confirmed cases per week against R-3's limit of one},
+with \textbf{16 of 20 weeks clean} and a worst week of 6, against 1.30 per week and 9 clean weeks
+before ADR-0010, while on the same tuning R-1's stepped p95 is 6 min against a 15 min budget
+(§\ref{sec:11.2}). The scored criterion is the worst week, so R-3 fails.
+
+\textbf{But $h$ was never the knob}, and that is the correction this section needs. ADR-0010
+attributed the failure to the \emph{reference} the limit is applied to rather than to the limit: both
+plausibility guards were being corrected 30 \% of the way onto every reading, so each CUSUM arm was
+accumulating a filter error instead of a residual. Correcting the lower arm's half of it halved the
+rate with $k$ = 30 ppm and $h$ = 150 ppm \emph{untouched}. So $k$ and $h$ stay where the spike put
+them rather than being retuned until R-3 passes: retuning a limit on the experiment that failed it
+is the same methodological error §\ref{sec:13.10} names. The upper arm's half of the same defect is measured,
+meets R-3 outright, and was declined because it costs three other requirements (§\ref{sec:11.2}, ADR-0010).
+\textbf{Appendix \ref{sec:I.3}} gives the full argument, including which week and which arm the residual
+failures sit on.
+
+\subsection{R-7 fails at design occupancy, and the failure is R-3's arriving somewhere else}\label{sec:13.5}
+
+Until this revision R-7 was reported as met, full stop, on 270 observed rooms. It was met on the
+occupancy regime it had been run in. With every room at its design head count the same experiment
+fails \textbf{231 of 270}, and the shape of the failure is the result.
+
+The two failing clauses are \textbf{disjoint}: 215 observed rooms were themselves \emph{accused of a
+fault they did not have} and 16 more sat outside the 5 \% airflow band at a worst deviation of
+0.058919 (215 plus 16 is the 231), and they attribute in opposite directions, which the
+supervisor-dead pass shows. Accusations run 85 of 90 rooms with the supervisor \emph{dead} against
+130 of 180 with it live, so they belong to the regime and the monitor rather than to the response to
+the fault; airflow breaches run 0 of 90 dead against 16 of 180 live, so that half is the
+compensation's own cost and nothing else's.
+
+\textbf{And the accusation is not where it stops.} Of those 215 falsely latched rooms,
+\textbf{130 were also taken off the inner loop}: the supervisor published \texttt{DEGRADED} for
+them, confiscating the damper of a room with nothing wrong with it. Zero rooms were degraded without
+first being latched, so every one of the 130 is downstream of a false confirmation rather than a
+separate defect. That figure reads 0 in any copy of \texttt{T-34b-room-isolation.csv} generated
+before the supervisor began re-asserting a degraded zone's mode on every cycle; the confiscation was
+always happening, and what changed is that it is now announced often enough to be seen.
+
+\textbf{So the larger half of R-7's design-occupancy failure is R-3's false-alarm rate, measured by a
+different experiment in a regime R-3's own replay never visits.} That is the second time this report
+has had to say it (§\ref{sec:11.2} records the same pattern inside R-2), and \textbf{R-3 is not one failing
+requirement among four; it is the one whose failure the other three inherit}. ADR-0009 predicted this
+collision and noted that no experiment asserted R-7 in that regime. One does now. Two bounds travel
+with the finding and \textbf{Appendix \ref{sec:I.4}} states both: one of the two airflow columns cannot falsify
+this requirement at all, and the 5 \% bound's \emph{reference plant} is ambiguous in a way ADR-0008
+never settles (an ADR-level question, not a code change).
+
+\textbf{The mechanism that turns one false alarm into six, which this section owed the reader and
+until now left in Appendix \ref{sec:F}.} A false \texttt{STUCK\_DAMPER} does not merely add one accusation;
+it \emph{pins} that room's believed opening in \texttt{AhuFlowModel}, and the proportional split is
+a ratio over all six rooms. Pin one denominator term and the other five rooms are credited with air
+they are not receiving, so their predicted concentrations fall below their readings and they confirm
+in turn. When the false-alarm rate was 1.30 per week, instrumenting the replay by room, hour, arm
+and whether any room was already pinned showed the two halves to be \textbf{exactly even: 13 of the
+26 confirmations were raised with no room yet pinned, and 13 were raised while another already
+was}. And of the 17 upper-arm confirmations, 11 were cascaded. One seed latched four rooms in
+53 minutes; another latched all six (ADR-0010, Appendix \ref{sec:F}).
+
+\textbf{This is the finding that makes R-3 structural rather than statistical}, and it is why
+ADR-0010's response was a re-anchor rather than a larger $h$: a confirmation that pins a damper now
+re-anchors the other five rooms and resets their arms, because a step change in believed airflow
+makes every ppm banked before it a statement about a different building. Aiming at the cascaded half
+took the rate from 1.30 to 0.55 and the clean weeks from 9 to 16 while moving no other requirement.
+The half that remains is the primary half, which no re-anchor can reach: \textbf{a shared-plant
+design couples its own false alarms, and that coupling is a consequence of ADR-0008's option B
+rather than a defect in the detector}. Independent rooms would not cascade, and would also have made
+R-7 hold by construction and its experiment measure nothing (§\ref{sec:4.5}).
+
+\subsection{The third diagnostic signal is blind after a confirmation, and reordering the
+pipeline does not help}\label{sec:13.6}
+§\ref{sec:7.3} records that the stuck-damper leaf fires on two signals rather than three, because a probe can
+only be requested once a case is latched, so the probe's own step is never judged at
+classification time. The obvious repair is to reorder: latch as usual, withhold the diagnosis, ask for the probe immediately,
+and name the fault when the step lands. \textbf{It was built, measured over 176 paired runs on
+identical seeds, and not kept.} It does what it was designed to do (detection moves in 0 of 88
+pairs and the fault is named on a genuinely judged step in 28 of the 39 runs that defer, against none
+before), and \textbf{the settled classification is identical in all 88 pairs}, because the judged
+step reads \texttt{MISSING} for a stuck damper, a blocked filter, nine rooms whose dampers are in
+perfect health, and the run with nothing injected. A signal that reads the same for every condition
+decides nothing.
+
+The cause is a located defect older than the ordering, and \textbf{correcting that baseline makes the
+reorder worse rather than better}, which is the finding worth defending, because by the time a
+probe can be commanded the supervisor has degraded the zone, raised the fan and trimmed the other
+five, so the room's answer is mostly the compensation's. \textbf{Appendix \ref{sec:I.5}} carries the defect, the
+counterfactual and the conclusion, which is the one concrete thing this report would hand to a
+successor: \textbf{a three-signal stuck-damper diagnosis needs a step judged \emph{before} a case
+opens} (the inner loop's own trims, read against a baseline that survives them) rather than a
+probe requested after the response to the fault has already begun.
+
+\subsection{The occupancy dependency is mitigated, not solved}\label{sec:13.7}
+
+The plausibility ceiling of §\ref{sec:7.2} keeps an unmodelled arrival from confirming a fault, and the
+sensitivity cost is not small: in A145 (20 seats) or A115 (10 seats), a room holding two people has a
+ceiling far above anything a stuck damper produces, so the fault stays invisible until the room fills.
+That dependency is now measured over the range a drawn weekday visits: stratifying T-24's
+closed-loop runs by the head count at the ignored command gives \textbf{0 of 4 confirmations at 0.625
+of design occupancy} and a median falling to 31 min at 1.00 (§\ref{sec:11.2}). And the spike does not cover
+it at all: its observer used \emph{true} occupancy, so \textbf{the kill-criterion gate was passed by
+a detector the system does not deploy}. What is still missing is exactly this: those figures are a
+stratification of runs that happened in one room over 0.625–1.000 of design occupancy, not a sweep
+holding the ratio as a controlled input over a wider range. Closing the remainder needs either a real
+occupancy signal, which BuildSim has no concept of, or that sweep (which is affordable, and was not
+done).
+
+\subsection{Latching is the right trade here, and it is a trade}\label{sec:13.8}
+
+Compensation shrinks the residual that found the fault, so without latching the monitor would clear
+every fault it handled successfully, the supervisor would stop compensating, and the pair would
+oscillate with a broken damper still broken. The active probe is the right re-test but cannot clear a
+case either, because a damper being compensated answers a step exactly as a repaired one does. The
+asymmetry is therefore deliberate: \textbf{a sticky false alarm is preferred to a self-clearing real
+fault.} For ventilation that is correct: a missed stuck damper means weeks of elevated CO₂, while a
+false latch costs one technician visit and a room running with trimmed neighbours. It is the
+\emph{wrong} trade wherever the degraded mode is itself the hazard or the expense: latching that shut
+ventilation off, or paged an engineer nightly, would make the sticky false positive the more expensive
+failure and the clearing policy would have to invert. \textbf{And the cost of a false latch is now
+exactly what this argument says it is}, which it was not until recently: the missing
+\texttt{serviced()} transport made a false latch permanent, so the trade was being defended against a
+system that could not pay the price it quoted. The transport exists (§\ref{sec:13.1}), so a false positive now
+costs one technician visit, one HTTP request and a room that ran with trimmed neighbours until it was
+made.
+
+\subsection{Scope, and the debts taken knowingly}\label{sec:13.9}
+
+\textbf{Legitimate scope.} Six rooms on one floor behind one air handler is not a building, but the
+shared fan makes R-7 non-trivial: keeping five rooms unchanged while compensating the sixth is
+something the supervisor must actively do. Simulated time through \texttt{ClockPort} is legitimate
+too, and what it buys has to be stated precisely because the obvious phrasing is false of half the
+system. \textbf{In the offline harness the replay is reproducible bit for bit}, which is exactly what
+R-3's false-alarm count needs. \textbf{In the containerised demo profile it is not}, and that is
+measured rather than suspected: four runs on identical \texttt{SEED}, \texttt{TIME\_SCALE} and
+\texttt{START\_AT} confirmed A115 at simulated 10:16, 10:17, 10:19 and 10:23. The offline number is
+the one every requirement is argued from. What simulated time does not exercise either way is
+anything that appears only over real duration: scheduler jitter, clock drift, broker backpressure,
+memory growth.
+
+\textbf{Debts.} Skipping a DTO layer is justified by lock-step single-author deployment but makes a
+domain refactor a wire-format break; having no message replay is similarly contingent, since a monitor
+restart in a real deployment loses the residual history it was accumulating and R-5 then rests
+entirely on the journal. Four smaller debts of one shape, the same fact written down twice, have
+since been \textbf{corrected}, and \textbf{Appendix \ref{sec:I.6}} keeps them on the record because what they
+were is worth more than that they are gone, along with the measured side effect worth more than its
+fix: a 0.05 change in one probe amplitude moved \textbf{ten of T-34b's design-occupancy rows from
+pass to FAIL}, which says the design-occupancy regime is not merely failing but \emph{unstable}.
+
+\subsection{What I would do differently}\label{sec:13.10}
+
+\noindent\begin{minipage}{\linewidth}
+\begin{enumerate}
+\tightlist
+\item \textbf{Write ADR-0008 before the spike, not after.} The spike tuned $k$ = 30 ppm and
+  $h$ = 150 ppm on a 210 m³ room at $Q_\text{max}$ = 0.175 m³/s, parameters none of the six real
+  rooms carries, and those values entered ADR-0008's parameter table unchanged.
+\item \textbf{Make the occupancy-free observer the spike.} The spike used true occupancy, so the
+  kill-criterion gate tested a detector the system does not deploy.
+\item \textbf{Run the false-alarm experiment at the requirement's horizon \emph{before} tuning.} A
+  149.1 ppm peak against $h$ = 150 should have triggered a seven-day six-room replay immediately;
+  tuning a threshold on an experiment shorter than the requirement is this project's clearest
+  methodological error.
+\item \textbf{Put the ambiguous fault in the generator instead of in the critique.} A per-branch
+  obstruction is what would make the confusion matrix worth reporting, and the enumeration cannot
+  express it.
+\item \textbf{Build the evaluation harness before the dashboard.} The dashboard is pleasant and the
+  harness is the evidence.
+\item \textbf{Let the supervisor decline to compensate when the compensation is not worth its
+  energy.} §\ref{sec:11.7} measures the trade and it is a bad one at design occupancy: a mean of 1.59 times
+  the fan power, up to 2.92, to move occupied comfort minutes from 0.0094 to 0.0217 against a
+  criterion of 0.95, while on the drawn weekday the plan never raises the fan at all. The
+  machinery for refusing already exists: the stuck-shut case reports ``no air path'' and turns the
+  work order to occupancy advice. This is the first change I would make next, and it is not made
+  here because it would move R-2's measured arm after the result was known.
+\end{enumerate}
+\end{minipage}
+
+\subsection{Risk register}\label{sec:13.11}
+
+\looseness=-1
+The register is \textbf{Appendix \ref{sec:J}}: each row a risk or an assumption, its impact, and the response
+with its status. Three rows now read ``measured, and it does happen'' rather than ``mitigated''
+(R-3 at its seven-day six-room horizon, the occupancy-dependent detection delay, and the trim lever
+already exhausted before the supervisor is asked for anything), which is the honest shape of this
+project's risk position.\label{sec:13end}

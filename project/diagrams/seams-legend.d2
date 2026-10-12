@@ -1,0 +1,24 @@
+# Legend for the seams-*.d2 set. Shape is the kind of seam, colour is the tier. Defined once
+# here so no other figure in the set has to repeat it.
+#
+# The argument — every contract, condition, obligation and file:line — is in seams.md, which is
+# the companion to this set and not an appendix to it. The figures carry the shape; the document
+# carries the reasoning.
+grid-columns: 2
+
+classes: {
+  contract: { shape: hexagon; style.stroke-width: 2 }
+  port: { shape: parallelogram; style.stroke-width: 2 }
+  t1: { style.stroke: "#1e8449"; style.fill: "#eafaf1" }
+  t2: { style.stroke: "#b9770e"; style.fill: "#fdf3e3" }
+  t3: { style.stroke: "#c0392b"; style.fill: "#fdedec"; style.stroke-dash: 4 }
+  box: { style.stroke-width: 2 }
+  doc: { shape: document; style.fill: transparent }
+}
+
+kc: "CONTRACT seam · run-time · any language" { class: contract }
+kp: "PORT seam · compile-time · same JVM" { class: port }
+l1: "TIER 1 · clean" { class: [box; t1] }
+l2: "TIER 2 · one stated condition" { class: [box; t2] }
+l3: "TIER 3 · not a seam" { class: [box; t3] }
+md: "Conditions and evidence: seams.md" { class: doc }
