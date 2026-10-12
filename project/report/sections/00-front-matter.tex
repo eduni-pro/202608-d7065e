@@ -1,0 +1,91 @@
+\begin{center}
+{\LARGE Ventilation Fault Detection, Diagnosis and Graceful Degradation\par}
+\vspace{0.5em}
+{\large D7065E, Architecture Document\par}
+\vspace{1em}
+{Project Group 5 (solo): Wassim Akachi\par}
+\vspace{0.3em}
+{\small v1.1, submission, 2026-10-11\par}
+\vspace{0.6em}
+{\small\textbf{Report: \pagespan{sec:1}{sec:13end} pages} (Sections \ref{sec:1}--\ref{sec:13},
+pp.~\pageref{sec:1}--\pageref{sec:13end}).
+Appendices \ref{sec:A}--\ref{sec:K}: \pagespan{sec:A}{sec:Kend} pages, reference only.\par}
+\end{center}
+
+\vspace{0.8em}
+
+\begin{center}
+\fbox{\parbox{0.93\linewidth}{\footnotesize
+\textbf{On the state of the evidence.} The architecture, the physics, the detector, the
+supervisor and the dashboard are built and running, and the unit suite is green at
+\textbf{\factSuiteTests{} tests, 0 failures, 0 errors}, with \factGuardedTests{} integration tests
+skipped by design when nothing is up for them to assert against (Section \ref{sec:10.2}). The \emph{offline
+evaluation harness}
+(\texttt{project/evaluation/}) is written and has run, so R-1 to R-7 all carry the experimental
+evidence their acceptance criteria name (Section \ref{sec:11.2}). \textbf{R-3 is not met; R-1, R-2 and R-7 are
+met on the arm their criteria name and fail on the harder arm beside it; R-4, R-5 and R-6 are met.}
+R-4 carries both the in-JVM kill experiment and the container-level chaos run, and R-5's case rebuild
+has been demonstrated against a live stack \emph{and} is now covered by integration tests that
+execute its real SQL. T-15's confusion matrix has been measured, and it is the least flattering
+result here: \textbf{one of the four injectable mechanisms is classified correctly}. The
+blocked-filter signature is unreachable under this plant's physics, and the sensor-drift branch is
+unreachable from \emph{either} sensor mechanism, which is a property of the classifier rather than of
+the fault model and was established by adding the mechanism that was supposed to fix it
+(Section \ref{sec:7.3}). T-29's optional learned contender has been measured and \textbf{dropped}: at the
+monitor's detection rate it costs about twenty times the false alarms and seven times the delay, and
+its misses are exactly the monitor's. T-35's reordering of the diagnosis has been measured and
+\textbf{not adopted}, for a reason worth more than the change: the third diagnostic signal is blind
+after a confirmation rather than merely late (Section \ref{sec:13.6}).
+\textbf{No measurement in this report is now outstanding}, which is not the same as every
+requirement passing, and Section \ref{sec:11.6} keeps the bound on what each result actually is. Every remaining
+gap is marked \pending{what is missing} in place, and Section \ref{sec:11.6} lists all of them in one table. No number in the prose or tables is an estimate: each
+comes from a file in the repository, a command I ran, or parameters that are. Figures can lag
+their sources, and have.}}
+\end{center}
+
+\vspace{1em}
+
+\begin{center}
+\fbox{\parbox{0.93\linewidth}{\footnotesize
+\textbf{How to read this report, and in what order.} The body is Sections \ref{sec:1}--\ref{sec:13}. Everything whose
+job is to be \emph{available} rather than read is in a lettered appendix, cross-referenced from the
+exact place in the body where a reader would otherwise go looking. \textbf{No appendix is
+load-bearing}: every verdict, every decision and every limitation is stated in the body, and the
+appendices carry only the working behind them.
+
+\textbf{The nineteen-page path.} The whole argument is in five places (nineteen pages of the
+forty-two), and a reader short of time can stop after them:
+\begin{itemize}\tightlist
+\item \textbf{\S\ref{sec:1}}, pp.~\pageref{sec:1}--\pageref{sec:1end}: the use case in one sentence, the two nested loops, and
+  \emph{where the seven requirements landed} before any detail.
+\item \textbf{\S\ref{sec:3}}, pp.~\pageref{sec:3}--\pageref{sec:3end}: the requirements table: each requirement's type, priority,
+  measurable acceptance criterion, verdict, and \textbf{the regime that verdict holds in}. Four of
+  the seven carry a failing clause and it is in the table, not buried.
+\item \textbf{\S\ref{sec:4.5}--\ref{sec:4.6}}, pp.~\pageref{sec:4.5}--\pageref{sec:4end}: every significant decision against the alternative it
+  beat and the price paid, then how the architecture grows: the two scaling ceilings, the shard
+  boundary, and the one boundary that is \emph{not} a seam.
+\item \textbf{\S\ref{sec:11.2} and \S\ref{sec:11.7}}, pp.~\pageref{sec:11.2} and \pageref{sec:11.7}: the measured R-1 to R-7 results, and what
+  the compensation costs in energy to buy what it buys.
+\item \textbf{\S\ref{sec:13}}, pp.~\pageref{sec:13}--\pageref{sec:13end}: the honest critique: what fails, the mechanism behind each
+  failure, and what I would do differently.
+\end{itemize}
+
+\textbf{Where the rest lives.}
+\begin{itemize}\tightlist
+\item \textbf{Appendix \ref{sec:A}} reprints \S\ref{sec:3}'s seven rows with their full evidence column.
+  \textbf{Appendix \ref{sec:F}} carries the working behind every verdict in \S\ref{sec:11.2}, and \textbf{Appendix \ref{sec:G}}
+  the register of every measurement with the bound on what it actually is.
+\item \textbf{Appendix \ref{sec:I}} carries the mechanism behind each finding in \S\ref{sec:13}, and \textbf{Appendix
+  \ref{sec:J}} the risk register.
+\item \textbf{The remaining appendices} hold supporting depth: \textbf{B} the component,
+  code-level and sequence views, \textbf{C} the six rooms, the invented parameters and the REST
+  contract, \textbf{D} the diagnosis and its confusion matrix, \textbf{E} the compensation algebra
+  and its second lever, \textbf{H} the dashboard evidence frames, \textbf{K} the test plan, the
+  suite and the harness.
+\end{itemize}
+\textbf{One rule for reading the verdicts.} None of them is global. Where a requirement is met on one
+occupancy regime and fails on another, both arms are stated wherever the verdict appears, and quoting
+either alone misrepresents the result.}}
+\end{center}
+
+\vspace{1em}

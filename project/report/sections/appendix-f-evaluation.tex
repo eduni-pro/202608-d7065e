@@ -1,0 +1,461 @@
+\section{Evaluation evidence in full, R-1 to R-7}\label{sec:F}
+
+\S\ref{sec:11.1} and \S\ref{sec:11.2} carry the spike, the results table and each requirement's verdict. This appendix
+carries the evidence behind those verdicts: the spike's own caveats, the per-requirement narrative,
+the occupancy stratification, the baseline and learned-contender comparisons, and the per-seed
+detail. Every verdict and every regime qualifier also appears in the body; what is only here is the
+working.
+
+\subsection{The spike's two caveats}\label{sec:F.1}
+
+\textbf{Two caveats that the spike's own result file states, and that bound every number above.}
+The observer used \emph{true occupancy}, so the healthy residual was pure sensor noise with no
+model error; the deployed observer carries the additional error of a smoothed estimate, which makes
+0 of 20 an optimistic bound. And the worst healthy seed peaked at \textbf{149.1 ppm against
+$h$ = 150 ppm}: a 0.9 ppm margin, with the next-highest seed at 91.6 ppm, so it is a tail draw
+rather than a design property. R-3 asks the same statistic to hold over seven days and six rooms,
+which is far more samples. That horizon has since been run, and the margin did not survive it:
+§\ref{sec:11.2} measures \textbf{0.55} confirmed cases per fault-free week with a \textbf{worst week of 6}
+against R-3's limit of one, and measured 1.30 per week on the run this margin predicted. The tuning
+is therefore \textbf{no longer merely reported: it is measured, and it fails}. ADR-0010 has since
+named why the margin was so thin, and it was not the limit: each CUSUM arm was running against a
+plausibility guard that had been corrected onto the measurement, which made the statistic
+near-zero-mean and put it in exactly the i.i.d. regime the analytic run length assumes. That is why
+$k$ and $h$ are left where the spike put them rather than retuned (§\ref{sec:13.4}).
+
+
+\subsection{What the observer's occupancy dependency costs, stratified}\label{sec:F.2}
+
+That guard is not free, and Section \ref{sec:13.7} states its cost: in A145 (20 seats) or A115 (10 seats), a
+room holding two people has a ceiling far above anything a stuck damper produces, so the fault is
+invisible until the room fills, and detection delay therefore depends on occupancy. The harness now
+prices that dependency at its two ends rather than describing it: with every room at design
+occupancy the p95 confirmation delay is \textbf{6 min}, and on a drawn weekday (the same fault, the
+same limit, the same seeds) it is \textbf{257 min}, with 5 of 20 injections never confirmed inside
+a twelve-hour window (§\ref{sec:11.2}). Two points are not a curve, but the closed-loop arm turns out to
+carry the points between them, and they were in the result file rather than missing from it. Its
+20 runs are 20 \emph{different} drawn weekdays, so they did not all present the same head count at
+the moment of the first ignored command, and the harness records that head count per run precisely
+so the correlation can be checked rather than taken. Stratified by it against A124's design
+occupancy of 8, the dependency is monotone and steep: \textbf{nothing at all is confirmed below
+0.75 of design occupancy}, and above it the median delay falls from the 122 and 257 min of the two
+runs at 0.75, through 77 min over the eight at 0.875, to \textbf{31 min} over the five at 1.00.
+§\ref{sec:11.2} gives the table and states plainly what kind of evidence it is: a stratification of the
+runs that happened, not a sweep of a controlled input.
+
+\subsection{R-1 to R-7, the measurements behind the verdicts}\label{sec:F.3}
+
+
+\textbf{R-1 is met on the protocol it specifies and not met in closed loop, and both belong here.}
+The stepped arm is what R-1's verification column names: the building settled, one command the
+frozen damper ignores, 20 seeds, delay measured from that command. At the deployed $h$ = 150 ppm it
+confirms 20 of 20 injections with a p95 of \textbf{6 min} against a 15 min budget, and the sweep is
+almost flat: p95 moves from 5 min at $h$ = 50 ppm to 8 min at $h$ = 300 ppm, so a sixfold change in
+the limit costs three minutes. That makes $h$ a false-alarm parameter rather than a speed
+parameter, which is why §\ref{sec:13.4} prices it against R-3 and not against R-1.
+\texttt{fault-monitor}'s own R-1 test reports p95 = 6 min on the same protocol over the same seeds
+against a deliberately separate physics implementation, and the two agree to the minute: agreement
+across two independent plant implementations being the strongest available evidence that 6 min is a
+property of the detector rather than of either simulator.
+
+The closed-loop arm injects the same fault on a drawn weekday with the inner loop commanding and
+the supervisor live, and it \textbf{fails}: 15 of 20 detected, median 74 min, \textbf{p95 257 min},
+five injections never confirmed inside a twelve-hour window. The cause is observability rather than
+detector latency. The CUSUM is driven by the measurement against the plausibility ceiling of
+Section \ref{sec:7.2}, the concentration the room would reach at design occupancy, while the controller
+issues its first ignored command as soon as the room passes its 800 ppm opening threshold, which on
+a drawn weekday happens with far fewer people present than that ceiling assumes. Until the room
+fills further the measurement stays under the ceiling and the statistic does not accumulate at all.
+The clock R-1 specifies starts at the ignored command; the physics does not start until later. Both
+numbers are reported because they answer different questions: 6 min is what the detector does when
+handed a step response to judge, and 257 min is what the building hands it.
+
+\textbf{That mechanism is not only argued, it is measured, and the measurement was already in the
+result file.} The closed-loop arm's 20 runs are 20 different drawn weekdays, so the room held a
+different head count on each when the controller issued its first ignored command, and
+\texttt{T-24-detection-delay.csv} carries that head count, \texttt{occupants\_at\_ignored\_command},
+for every run. A124's design occupancy is 8 (§\ref{sec:6.1}), so the 20 runs stratify by the
+actual-to-design occupancy ratio the plausibility ceiling is sensitive to:
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 10\tabcolsep) * \real{0.17}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 10\tabcolsep) * \real{0.13}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 10\tabcolsep) * \real{0.11}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 10\tabcolsep) * \real{0.13}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 10\tabcolsep) * \real{0.19}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 10\tabcolsep) * \real{0.27}}@{}}
+\toprule
+\textbf{Occupants at the ignored command} & \textbf{Ratio to design} & \textbf{Runs} &
+\textbf{Confirmed} & \textbf{Delay min / median / max} & \textbf{} \\
+\midrule
+\endhead
+5 & 0.625 & 4 & \textbf{0 of 4} & — & never inside 12 h \\
+6 & 0.750 & 2 & 2 of 2 & 122 / — / 257 min & two runs, so no median \\
+7 & 0.875 & 8 & 8 of 8 & 45 / \textbf{77} / 92 min & \\
+8 & 1.000 & 5 & 5 of 5 & 21 / \textbf{31} / 44 min & \\
+— & — & 1 & 0 of 1 & — & no ignored command was ever
+issued: the room never passed the opening threshold with the damper below it \\
+\bottomrule
+\end{longtable}
+
+The dependency is monotone, steep, and it has a floor: \textbf{below 0.75 of design occupancy
+nothing is confirmed at all}, because the measurement never reaches a ceiling computed at 1.25
+times design. That is the mechanism stated as a measurement rather than as an explanation, and it
+is the curve §\ref{sec:7.2}'s marker asked for.
+
+\textbf{What kind of evidence this is, stated rather than left to be assumed.} It is a
+stratification of the 20 runs that happened, \emph{not} a sweep of a controlled input, and three
+bounds follow from that. The strata are unbalanced (4, 2, 8 and 5 runs), so the 0.75 row is two
+observations and carries no median worth printing. The range sampled is only 0.625 to 1.000 of
+design, because that is what a drawn weekday puts in an eight-desk office; nothing here says what
+happens at 0.4 or at 1.5. And every point is one room, A124, at one limit, $h$ = 150 ppm. A proper
+sensitivity curve would hold the occupancy ratio as an input and sweep it, which is a different
+experiment and has not been run.
+
+One comparison in the table is worth more than the trend, because it separates two causes that are
+easily confused. The stepped arm's p95 of 6 min is \emph{also} at an occupancy ratio of 1.0, and
+the closed-loop stratum at the same ratio has a median of 31 min. Those two numbers differ by a
+factor of five at identical occupancy, so the residue is \textbf{protocol, not occupancy}: the
+stepped arm hands the monitor a settled building, the inner loop switched off and one clean step
+to judge, while the closed-loop arm asks it to find the same fault in a room that is still filling
+and still being commanded. Occupancy explains the 257 min tail; the protocol explains the gap
+between 6 and 31 min at the top of the range.
+
+\textbf{The baseline comparison, which is the project's central claim, needs stating carefully.}
+T-25 scores the deployed monitor and a fixed CO₂ threshold on the identical per-minute measured
+series from the identical runs: 20 seeds with a stuck damper for detection, the same 20 seeds over a
+fault-free week for false alarms. The threshold was tuned over 6 limits $\times$ 5 durations
+\emph{on the very runs it is then scored on}, which flatters it, and that is deliberate: the
+question is whether a model of what the command owed beats the best a fixed threshold can be made
+to look, not whether it beats a careless one.
+
+\textbf{Measured, the monitor is ahead on every axis the experiment reports}: detection
+\textbf{0.75} against \textbf{0.45}, alarm volume \textbf{0.55} against \textbf{2.35} per
+fault-free week, median delay \textbf{74 min} against \textbf{126}, Youden's J \textbf{$+0.55$}
+against \textbf{$+0.30$}, and \textbf{0} healthy rooms flagged against 1. The best the grid can be
+tuned to is 900 ppm sustained for 5 min.
+
+\textbf{Until this revision the paragraph above said something weaker, and the correction is worth
+owning because it runs in the design's favour.} The prose was describing a \emph{pre}-ADR-0010 run,
+in which the monitor sat at 1.30 alarms per fault-free week and the threshold was consequently
+ahead on Youden's J at $+0.25$ against $+0.20$: a genuine trade, and the report called it one
+rather than claiming a win. ADR-0010 halved the monitor's alarm volume with its detection
+unchanged, the committed result file has been post-fix since, and the prose had not caught up: the
+report was contradicting its own repository and understating its own result. A correction in this
+direction deserves more scepticism than one that costs something, so every figure in the preceding
+paragraph is read off \texttt{evaluation/results/T-25-baseline-comparison.csv} as committed, and
+re-running T-25 reproduces that file byte for byte.
+
+\textbf{The discriminating comparison is at equal alarm volume}, and it is the one the claim rests
+on. At 900 ppm sustained for 30 min the threshold raises \textbf{0.40} alarms per fault-free week
+(the closest match in the grid to the monitor's 0.55) and detects \textbf{0.15} of the faults
+against the monitor's \textbf{0.75}, taking 312 min to do it against the monitor's 74. So the
+honest ratio at equal alarm volume is \textbf{five times}, and the \emph{fifteen}-fold figure this
+report used to quote belonged to the pre-ADR-0010 operating point and is not true now. The ratio has
+moved twice as this number was re-measured (fifteen, then two and a half, now five), which is
+itself the reason it is quoted with the operating point attached rather than on its own.
+
+\textbf{T-29 re-matched the same grid on a \emph{held-out} fault-free week}, and there the threshold
+does worse again: \textbf{0.05} detection at 0.65 alarms per week, with a 296 min median delay.
+The gap between those two numbers is itself a measurement. Scored on the runs it was tuned on the
+threshold reaches 0.15 at a matched alarm volume; scored on a week it has never seen, 0.05.
+\textbf{Most of the baseline's apparent strength is the tuning-on-test advantage this comparison
+deliberately granted it}, and naming that is worth more than either ratio alone. \textbf{Two bounds still travel with the result}: both
+detectors were scored against the generator that produced the faults (§\ref{sec:11.5}), and the monitor also
+names the fault and carries its evidence while a threshold reports only that a room is above a
+number, which is not a detection-rate advantage and is the reason the system exists. The claim
+survives in direction at every one of these points; its magnitude depends on which is quoted, so
+all of them are, and \textbf{five is the one to defend}.
+
+\textbf{The third detector in that contest is T-29's learned contender, and it is dropped on the
+numbers it lost by.} The test plan specified it as optional and kept only if it wins. It is a
+one-class novelty detector fitted on a fault-free commissioning window \emph{only} (it never sees
+a labelled fault), scoring each minute by its distance from what the room looked like when it was
+healthy, over the features the monitor already computes. Thirty operating points, 20 seeds, scored
+on the same held-out week. \textbf{No point on the grid beats the monitor}: to reach its 0.75
+detection the contender raises \textbf{11.25} alarms per fault-free week against \textbf{0.55} and
+takes a \textbf{518} min median delay against 74: about twenty times the false alarms and seven
+times the delay. Loosening it until it detects everything costs 475.10 alarms a week, which is not a
+detector.
+
+The interesting part is \emph{why}, and three measurements pin it rather than asserting it. First,
+\textbf{the contender's misses are exactly the monitor's}: the same five seeds, at every operating
+point but the loosest. Both read the same residual, so what limits detection on this plant is the
+evidence the residual carries, and \textbf{a learned decision rule cannot add evidence}. Second,
+the contender scores each minute on its own while the CUSUM accumulates; its only lever on
+in-control run length is a persistence requirement, which is the one part of it that is hand-set
+rather than learned. The observer re-anchors the residual towards each reading, so a stuck damper's
+excursion decays rather than persisting: the signal shape a cumulative statistic survives and a
+per-sample quantile does not. Third, the loss is not an artefact of its training: all twenty
+commissioning windows were clean by the monitor's own judgement, none of the 120 per-room fits was
+degenerate, and the alarms it is dropped for are counted on the held-out week. This is the result
+the project wanted from an optional contender: not that learning cannot work here, but a measured
+statement of what it would have to beat and by how far it failed.
+
+\textbf{R-2 is met on the case it covers, and the case it fails on is worth more than the pass.} On
+a drawn weekday the faulted room holds 1.000 of its occupied minutes at or below 1000 ppm on all
+five seeds, and the figure is unchanged with the lower CUSUM arm off and with the harness's damper
+feedback off, so neither the two-sided statistic nor that fidelity control is doing the work. The
+reference arm is what makes the result readable: a run with \emph{no fault at all} scores 1.000 and
+meets the criterion 5 of 5 in \emph{every} case, including the one R-2 fails. That is the evidence
+that the plant is now correctly sized for the speed it runs at (§\ref{sec:13.3}), and it is what pins the
+surviving failure to one thing rather than to the building. With a stuck damper \emph{and} every
+room simultaneously at its design head count, the supervised arm holds only 0.022 of occupied
+minutes and \textbf{0 of 5 seeds} meet the criterion, against 0.009 with the supervisor dead.
+\textbf{All five latch and all five carry a plan} (at minutes 481, 481, 481, 494 and 496), so none
+of them fails for want of a diagnosis. They fail for want of air, and the limitation each plan
+states says which lever ran out. On \emph{one} seed the solver reports that every zone is faulted,
+so no healthy damper is left to trim and the gain of \textbf{1.43} is fan speed alone, 0.70 raised
+to its 1.00 ceiling. On another every healthy damper is already at its own minimum, so again only
+the fan is left, and there it is the healthy rooms' own 5 \% tolerance rather than the plant that
+stops it, at 0.735 and a gain of \textbf{1.05}. On the remaining three the trim runs to 0.82, 0.65
+and 0.59 with the fan at 0.77, 0.77 and 0.81, reaching gains of \textbf{1.29, 1.62 and 1.77} with
+the healthy-flow deviation spent in full at exactly 0.0500. \textbf{So on four of the five it is
+the 5 \% healthy tolerance that binds and not the plant's ceiling}, which is the same bound
+§\ref{sec:7.4} names, arriving in the regime where it costs something. So the mechanism works where it runs
+and is worth $+0.012$ of occupied minutes, against a fault that costs 0.991. And the gap is
+not close: the solver's own comfort rule, $(C_\text{measured}-C_\text{out})/(C_\text{target}-
+C_\text{out})$, asks for \textbf{2.3 times} the room's flow at the unsupervised mean of 1754 ppm,
+against the \textbf{1.05 to 1.77} the plan reaches. \textbf{Compensation redistributes flow and buys a
+bounded amount of new flow from the fan, and a building already at design occupancy needs more than
+either gives.} That is the plain statement of R-2's failure and of its mechanism.
+
+\textbf{On every one of those five seeds the trim lever has already been damaged before the
+supervisor is asked for anything, and that is the larger finding.} Each run carries at least one
+\emph{other} room latched with no fault injected in it: one room on two of the seeds, two on
+another and four on a third, and on the one whose plan reports every zone faulted, all five.
+A latched room is counted among the faulted ones, so it is no longer a healthy damper the solver may
+trim: \textbf{R-3's false alarms consume the lever R-2 depends on}. The same effect appears on the
+drawn weekday from the other direction, where on two of the five seeds the room is never confirmed
+at all and no plan is reached: R-1's closed-loop miss arriving inside R-2's experiment.
+\textbf{R-2's design-occupancy failure is therefore substantially a \emph{consequence} of R-3 and
+R-1 rather than an independent shortfall}, which also means it was never going to be fixed in the
+solver. ADR-0009 settles the part that could have been: the
+healthy-room airflow allowance was swept closed-loop from 0.05 to 0.99, one clean build per
+setting, and it does not move R-2's criterion by a single seed (0 of 5 at every setting, with
+byte-identical per-seed fractions) because with every healthy damper on
+its floor the fan lever is not selective and the plant caps it at 1.43 against the 2.00 to 3.30 the
+regime asks. The plant's own bound was then measured, with every unlatched room driven to its
+minimum position per room rather than by one common trim and the fan at its ceiling: it reaches
+only \textbf{2 of the 5 seeds}, and on a third it \textbf{starves A145 to 1033 ppm}. That last
+number refutes the premise the sweep was testing (that surplus air costs fan energy rather than
+comfort) because a per-room trim takes air from the open healthy rooms as well as giving it to the
+nearly shut ones. The constraint was therefore left at 0.05, with the two sides separated in the
+code because they are genuinely different quantities, and R-2's verdict is unchanged (ADR-0009).
+
+\textbf{One finding in this experiment is larger than R-2's verdict, and it is reported here rather
+than left in the result file.} Until the final run the solver had a single lever: trim the healthy
+dampers so the proportional split hands the frozen room a larger share. On a drawn weekday every
+damper sits on its 0.15 occupied-hours floor when a plan is solved, so that lever was exhausted
+before it was ever used: every plan came back \texttt{trim 1.00, fan 0.70, gain 1.00} and the
+supervisory loop measured $+0.000$ of occupied minutes. At design occupancy the trim did reach three
+of the five seeds and bought $+0.008$, and the mean CO₂ over those same runs is what makes that
+figure unreadable on its own: the supervised arm's mean in the faulted room was \textbf{1788 ppm
+against 1754 ppm with the supervisor dead}, so the mechanism this project is named for left the room
+\textbf{34 ppm worse} than no supervision at all, for the price of a fan command, a work order and a
+mode change. What found it is the shape of the
+experiment rather than a reading of the code: T-26 runs an unsupervised arm beside the supervised
+one on the same occupancy draw, and nothing else in this project could have given that comparison a
+sign. The fix follows from the split law rather than from tuning: $Q_i = Q_\text{fan}a_i/\Sigma a_j$
+is linear in $s$, so raising the fan multiplies \emph{every} room's flow including a frozen room's,
+and the same regime now measures \textbf{1618.9 ppm} supervised against 1753.6 unsupervised:
+\textbf{135 ppm} of help where there was 34 ppm of harm. Three bounds travel with it. The fan lever is \textbf{not
+selective}: with no trim in force $A(t)=A_0$ and both ratios collapse to $r = \gamma = s/s_0$, so the
+frozen room's gain equals the healthy rooms' over-supply exactly, which means ADR-0008's 43 \% of
+headroom is spendable selectively only \emph{through} a trim and the lever is bounded by the 5 \%
+healthy-flow tolerance rather than by the plant's ceiling: the ceiling binds only where no healthy
+room is left to over-supply. R-2 still fails this case. \textbf{And the charge this lever once
+carried against R-3 is withdrawn rather than renumbered.} It read that spending fan speed moved R-3
+from 1.25 to 1.30 confirmed cases per fault-free week, because a false alarm now draws a bounded fan
+raise that perturbs all six rooms, with the alternative measured rather than argued: keeping the
+no-op trim in the published plan dropped R-3 to 0.55 and would have passed it, while costing R-2
+0.054 of occupied minutes and failing it by taking five healthy rooms off CO₂ control to hold them
+where they already were. All of those R-3 figures were measured against the \emph{pre}-ADR-0010
+detector, in which both plausibility guards were being corrected onto the reading and every CUSUM
+arm was running on a filter error. And ADR-0010's attribution accounts for all 26 of those
+confirmations without the fan: the 13 cascaded ones ran through the \emph{believed} damper opening
+that a confirmation pins in \texttt{AhuFlowModel}, not through the fan command, and the re-anchor
+that closes that path is now shipped. ADR-0009 adds that the \emph{size} of the lever does not move
+R-3 either, the over-supply allowance having been swept from 0.05 to 0.99 with R-3 unchanged at
+every setting. One extra confirmation in twenty weeks is inside the burst distribution those weeks
+have, so it is not re-asserted as this lever's price; what is honest is that the lever's separate
+cost to R-3 has not been re-measured since the fix, and that the rate with the lever in force is
+\textbf{0.55} per week (§\ref{sec:11.2}). The R-2 half of the alternative stands exactly as it was measured.
+
+Case B (a damper genuinely shut at opening 0, which ADR-0008 places outside R-2's scope) is
+measured for the bound rather than for the requirement: 0.153 of occupied minutes at or below
+1000 ppm, \texttt{compensates()} false, achieved gain exactly 1.000, and the real flow split with
+A124 shut and the fan at 70 \% is A125A 16.7, A125 30.7, A116A 49.8, A115 107.3, A124 0.0, A145
+208.5 l/s. The simulator cannot express this case: \texttt{VentilationZone}'s invariant clamps a
+stuck damper at 0 back to the room's 0.15 floor, which is ADR-0008's own decision rather than a bug.
+Case B is therefore integrated from the same \texttt{Co2MassBalance} and the same
+\texttt{FlowSplit} the simulator uses, at the same 1 s step and on the same occupancy draw, with the
+airflow a shut damper actually receives: zero. The bypass is declared in the harness's own output,
+not only here.
+
+\textbf{R-3 is not met, and it is the requirement this design does not meet.} Over 20 fault-free
+simulated weeks of all six rooms the monitor raises \textbf{0.55 distinct confirmed cases per week}
+against a limit of one: \textbf{16 of the 20 weeks are clean} and the worst still raises 6. Before
+ADR-0010 the same experiment measured \textbf{1.30 per week with 9 clean weeks}, so the rate has
+more than halved and seven more weeks have come clean while the verdict has not moved: the harness scores
+the \emph{worst} week, and that is the criterion this requirement is judged by. The rate is driven
+by a minority of weeks rather than spread evenly, which is what a tail-draw mechanism looks like
+and is what §\ref{sec:11.1}'s 0.9 ppm margin predicted. A case is counted once, by distinct \texttt{caseId}
+reaching \texttt{CONFIRMED} rather than by published events, because a latched case republishes its
+state on every probe and counting events would charge the monitor a dozen alarms for one
+accusation; the threshold it is compared against is counted the same way, by episode.
+
+\textbf{The mechanism is attributed, and the attribution is worth more than the halved rate.} It
+was measured rather than argued: the replay was instrumented and all \textbf{26 pre-fix} false
+confirmations (the 1.30 per week over 20 weeks that the sentences above quote, before ADR-0010)
+classified by room, hour, CUSUM arm and whether any room had already been pinned. The committed
+replay, post-fix, carries \textbf{11}. \textbf{13 were
+primary} and \textbf{13 cascaded}; \textbf{17 came from the upper arm} and 9 from the lower; all
+six rooms confirmed at least once, at hours spread across the whole working day, so it is neither a
+morning fill nor a warm-up artefact. The cause is \textbf{one defect with two faces}.
+\texttt{ZoneObserver.correctTowards} pulled \emph{both} plausibility guards 30 \% of the way onto
+every reading, so neither guard was a bound: each was a first-order filter of the measurement
+sitting a fixed offset away from it, which makes measured minus ceiling the error of that filter
+rather than a statement about occupancy. Each CUSUM arm was therefore driven by a near-zero-mean
+statistic, exactly the i.i.d. regime Siegmund's ARL$_0$ assumes, and over 120 room-weeks it duly
+fired. The trace is unambiguous: in a ten-seat room whose design-occupancy trajectory settles near
+1500 ppm, the ceiling sat 50 to 80 ppm \emph{above} the reading all day, so nine people arriving
+walked the measurement straight through it. The floor had the mirror defect, dragged \emph{up} onto
+the reading and crossed from above by every departure, which is why the lower arm's confirmations
+cluster at 16:00 to 19:00 when offices empty. And the cascade is the same defect at one remove: a
+false \texttt{STUCK\_DAMPER} pins the room's believed opening in \texttt{AhuFlowModel}, the split is
+a ratio over all six rooms, so the other five are credited with air they are not getting, their
+filtered ceilings fall below their readings and they confirm in turn. One seed latched four rooms
+in 53 minutes and another latched all six (ADR-0010). The cross-room cascade an earlier pass
+blamed, which charged the \emph{response} to a diagnosis rather than the belief behind it, stays
+ruled out \emph{on the drawn weekday}: T-34b records 0 fault events and 0 degraded rooms across all
+270 drawn-weekday observations in rooms with no injected fault. \textbf{At design occupancy it is
+not ruled out at all}: the same experiment's second arm accuses 215 of 270 observed rooms, and
+the supervisor-dead pass shows the accusations are the monitor's rather than the compensation's.
+That is this same rate, measured by a different experiment in a regime R-3's own replay does not
+visit, and §\ref{sec:11.6} records it as the cross-requirement pattern it is.
+
+\textbf{Half of that defect is corrected and half is deliberately not, and the half that is not is
+the more interesting decision.} Taken: the guarded lower arm now runs against the one bound that
+needs no anchor (the outdoor concentration less the overnight-floor allowance), and a confirmation
+that pins a damper re-anchors the other five rooms and resets their arms, because a step change in
+the believed airflow makes every ppm banked before it a statement about a different building. That
+is what took the rate from 1.30 to 0.55 and the clean weeks from 9 to 16, and it moved \emph{no}
+other requirement: R-1's stepped p95 of 6 min and closed-loop 15 of 20, R-2, R-4 at 23 of 23, R-6
+and R-7's drawn-weekday 0 of 270 are all unchanged. \textbf{Not taken: making the upper arm's ceiling a bound as
+well.} That variant was built and measured, and it makes \textbf{R-3 pass outright}: 0.00 false
+confirmations per week, 20 of 20 weeks clean. It was \textbf{declined on evidence}, because it
+takes \textbf{R-1's closed-loop detection from 15 of 20 to 1 of 20}, \textbf{T-27 from 23 of 23
+assertions to 19} and \textbf{R-7 from 0 of 270 observed rooms failing to 2}, and because sweeping
+the plausibility ceiling's headroom finds no setting that recovers them: detection is 1 of 20 at
+1.00 and 1 of 20 at 1.25, and below 1.00 the ceiling stops bounding occupancy at all. The
+arithmetic behind that is structural rather than a threshold. The closed-loop fault is worth about
+\textbf{86 ppm} of steady state at A124's drawn occupancy of 4 to 5 of its 8 desks, against
+\textbf{270 to 600 ppm} of ceiling headroom; and those detections are real rather than the same
+false alarms landing on a faulted room, because run as a pair the baseline latches A124 15 of 20
+with the fault injected and \textbf{0 of 20 with nothing injected}. Both numbers come from one
+knob, what the CUSUM's reference is, and there is no setting of it that meets R-3 and keeps R-1's
+closed-loop arm. Breaking that tie needs a second, occupancy-free detection path rather than a
+better reference (\texttt{ZoneObserver.stepAmplitudeRatio}, which the classifier already reads as
+a signal and no CUSUM does), and that is design work rather than a parameter (ADR-0010). What is
+left unattributed is narrower than it was and worth stating exactly: the residual \textbf{11}
+confirmations sit in 4 weeks (6 on seed 2, 3 on seed 20, and one each on seeds 7 and 11), and seed
+2's six are all on the upper arm, all after one primary on A124 at Wednesday 13:39.
+
+\textbf{R-6 is met, and its headline number is an extrapolation rather than a measurement.} The
+sweep runs to \textbf{25\,600 zones at a p95 of about 6 s}, roughly a tenth of the 60 s interval and
+a factor of over 4000 above the six rooms the system actually serves, so no measured point breaks the
+budget. That largest point is quoted to the precision the machine supports rather than to three
+decimals: it has come out at 5.676, 5.740, 5.759, \textbf{6.008} and 6.052 s over five runs on the
+same laptop (the fourth of those being the committed run this report quotes from), a spread of
+about 7 \%, because this is the one experiment in the harness that measures real time. The
+breaking point is therefore read off a fit: over the nine points from 100 zones up,
+p95 = $1.196\times10^{-8}\,n^{1.97}$ s with $r^2$ = 0.9991, which crosses 60 s at about
+\textbf{86\,000 zones}. And it moves with the run that fitted it: the committed run gives 85\,992,
+while earlier runs of the same code gave 87\,338, 88\,109 and 87\,521. So the figure carries one
+significant digit, 86\,000 is the committed one, and the 86\,000–88\,000 spread is its only error
+bar. The harness labels it an extrapolation in those words and this
+report keeps the label; what is \emph{measured} is the shape and the cause. The fitted exponent is 1.97 against a
+theoretical 2 and reproduces across runs, and the direct evidence is the $p95/n^2$ column: it falls
+while per-zone fixed costs dominate and then settles on 8.2–9.2 ns across the last seven points, 400
+to 25\,600 zones, a 64-fold range of $n$, which neither a linear nor an $n \log n$ cost would do. The
+saturated element is named rather than guessed: \texttt{AhuFlowModel.believedFlowTo} sums every
+zone's opening to normalise the proportional split, and every zone's observer asks it, so one cycle
+is $\Theta(n^2)$ in the zone count. That is the computational price of ADR-0008 option B: one
+shared handler means every room's prediction depends on every other room's damper, and there is no
+decomposition that avoids the sum. At six rooms the price is 0.007 ms, which is why the decision was
+right. Reading ingestion was never close to the bottleneck: it stays at 0.89 ms p95 for 25\,600
+readings, three orders of magnitude under the cycle, against a risk register that had nominated the
+time-series query as the likely limit.
+
+\textbf{R-6 now has a second ceiling, and it is three orders of magnitude below the first.} The
+capability is no longer harness-only: \texttt{ZONE\_COUNT} is settable from the environment, all
+\factAuthoredServices{} project-authored containers read the same one the way they already share \texttt{REAL\_EPOCH}
+and \texttt{TIME\_SCALE}, and the stack was brought up and observed at 12 and at 58 zones with the
+default six-room corridor unchanged end to end. \textbf{58 is a hard ceiling, and it is BuildSim's
+rather than the monitor's}: it refuses to host equipment in a room its floorplan does not have, so a
+deployable zone must be named after a real one, and level 0 of the A building has 52 further rooms
+of comparable size. Verified in both directions: \texttt{ZONE\_COUNT=58} runs, \texttt{ZONE\_COUNT=60}
+dies with \texttt{room "A124S9" does not exist on level "level0"}. So \textbf{R-6's breaking point
+remains a harness measurement} and this report does not claim otherwise; what the wiring buys is a
+deployed system that can be scaled and watched at all. One honesty note travels with the synthetic
+zones: a zone past the sixth takes a real level-0 room's \emph{name and location} so BuildSim can
+carry its sensor and damper, while its volume, floor area, damper authority and occupancy schedule
+are a cycled copy of one of the six. \texttt{A119} is 109.6~m² in the floorplan and is simulated as
+a copy of \texttt{A125A}'s 18~m². A synthetic zone is therefore representative in size, time constant
+and head count, and is not a claim about the room whose name it borrows.
+
+\textbf{R-7 is met on the drawn weekday and fails at design occupancy, and the two numbers must
+always travel together.} Each of the six rooms takes its turn as the injected room, on three seeds,
+in three configurations (the deployed guarded lower arm with the supervisor live, the arm off with
+the supervisor live, and the guarded arm with the supervisor dead, 90 observed rooms each), and each
+observed room is compared with \emph{itself} in a fault-free run on the same seed rather than with a
+neighbour. On the \textbf{drawn weekday}, across all three passes, \textbf{0 of 270} observed rooms
+failed: no fault event in a room with no injected fault, no room degraded, no room outside the
+fault-free CO₂ band, and both the plan's own airflow figure and an independently recomputed
+\texttt{FlowSplit} at 0.0000 against a 5 \% tolerance.
+
+\textbf{At design occupancy the same experiment fails 231 of its 270 observed rooms}, and the way it
+fails is the result rather than the count. The two failing clauses are \textbf{disjoint}: 215 rooms
+were themselves \emph{accused of a fault they did not have}, and a further 16 sat outside the
+airflow band at a worst deviation of \textbf{0.058919}: 215 plus 16 is the 231, so neither clause
+is standing in for the other. They also attribute in opposite directions, and the supervisor-dead
+pass is what separates them. Accusations run \textbf{85 of 90} rooms with the supervisor dead against
+130 of 180 with it live, so they are the regime and the monitor rather than the response to the
+fault: compensation slightly \emph{suppresses} them. Airflow breaches run \textbf{0 of 90} dead
+against 16 of 180 live, so that half is the compensation's own cost and nothing else's: a dead
+supervisor produces no plan to charge anyone for. \textbf{The accusing half is R-3's false-alarm
+rate arriving inside R-7's experiment}, which is the same cross-requirement pattern §\ref{sec:11.2} already
+records for R-2, and ADR-0009 predicted it in those words while noting that no experiment asserted
+R-7 in that regime. One does now, and they collide.
+
+\textbf{The mode clause is no longer unexercised, and the requirement now fails under either
+reading.} The drawn-weekday pass reported it as satisfied by accident rather than by design: a plan
+was in force in 16 of the 18 injections in each supervised pass and every one came back with a trim
+\emph{factor} of exactly 1.00 — no trim at all, which publishes no damper command, so no healthy
+room left \texttt{NORMAL} control, and the
+record named the honest re-test as an experiment that \emph{forces} a trim. The design-occupancy arm
+is it: \textbf{40 of 540} rooms reach \texttt{COMPENSATING}. So R-7's literal wording fails on 40
+rooms and ADR-0008 consequence 9's defensible reading fails on 16, and choosing between the two
+readings no longer rescues the requirement. \texttt{DEGRADED} reaches \textbf{130 of 540}, which is
+the half that matters: a degraded room is one the monitor accused and took off demand control, and
+§\ref{sec:11.2} records 130 of the 215 falsely latched rooms in exactly that state.
+
+One of the two airflow columns cannot falsify this requirement and should stop being quoted beside
+one that can. \texttt{CompensationPlan.worstHealthyFlowDeviation()} reaches 0.0500 and no further in
+any regime, because the solver caps the fan at the speed that makes the figure exactly
+\texttt{HEALTHY\_FLOW\_TOLERANCE} and then reports that cap: it is the solver quoting its own
+constraint back. The independently recomputed \texttt{FlowSplit} deviation is the only one of the two
+that can fail, and it does. Behind that sits an unresolved question that is ADR-level rather than a
+code change: \textbf{the 5 \% bound's reference plant is ambiguous}. The solver bounds its claim over
+each latched room's \emph{latch-time} opening while the recomputation uses its \emph{pre-latch} one,
+which on one seed gives the same room 48.7940 against 38.4015 and the ratios 1.050000 against
+1.058919. The two coincide until a second room latches inside one episode, which the drawn weekday
+never does and design occupancy routinely does. Both are defensible readings of ``before the
+compensation''; ADR-0008 consequence 9 never says which.
+
+The one large column is the \emph{measured} end-to-end flow gap, \textbf{0.00 to 6.10 times the
+fault-free flow} over the 540 observed-room rows, and it is not a violation: a damper frozen near its
+minimum stops competing for the shared fan, so the five rooms \emph{gain} the air it is not taking.
+ADR-0008 priced that coupling explicitly, and the 5 \% tolerance bounds what compensation takes from
+the healthy rooms, not what the fault gives them.

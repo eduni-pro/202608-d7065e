@@ -1,0 +1,190 @@
+% Final report (Architecture Document), D7065E — Embedded Intelligence at the Edge.
+% Structure and preamble follow lab-assignment/final_report_template/final_report_template.tex;
+% the template's grey guidance notes and bracketed slots are replaced by content, as its
+% instructions require. Build: make (latexmk) or make plain (two pdflatex passes).
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+\PassOptionsToPackage{dvipsnames,svgnames,x11names}{xcolor}
+%
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb}
+\usepackage{lmodern}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp}
+\fi
+\IfFileExists{microtype.sty}{\usepackage[]{microtype}\UseMicrotypeSet[protrusion]{basicmath}}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{%
+  \IfFileExists{parskip.sty}{\usepackage{parskip}}{%
+    \setlength{\parindent}{0pt}\setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{\KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{xcolor}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{}
+\IfFileExists{bookmark.sty}{\usepackage{bookmark}}{\usepackage{hyperref}}
+\hypersetup{
+  pdftitle={Ventilation Fault Detection, Diagnosis and Graceful Degradation, Architecture Document},
+  pdfauthor={Wassim Akachi},
+  colorlinks=true,
+  linkcolor={RoyalBlue},
+  filecolor={Maroon},
+  citecolor={Blue},
+  urlcolor={Blue}}
+\urlstyle{same}
+\usepackage[a4paper,margin=2.0cm]{geometry}
+\usepackage{longtable,booktabs,array}
+\usepackage{calc}
+\usepackage{graphicx}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+\setlength{\emergencystretch}{3em}
+\providecommand{\tightlist}{\setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+% Section numbers come from LaTeX, not from the heading text. This file was generated from
+% Markdown by pandoc, whose preamble switches numbering off and carries the author's hand-typed
+% numbers through as part of each title. That made every number, and every cross-reference to one,
+% a literal that nothing checked: "Section 11.6's closed-loop arm" pointed at the register of
+% pending measurements for a whole revision, and no build could notice. The format below
+% reproduces the hand-typed one exactly -- a period after a section or an appendix letter, none
+% after a subsection, one space either way -- so turning numbering on changes no printed character.
+\setcounter{secnumdepth}{2}
+\usepackage{newunicodechar}
+\usepackage{textcomp}
+\usepackage{amssymb}
+\newunicodechar{°}{\textdegree}
+\newunicodechar{₂}{\textsubscript{2}}
+\newunicodechar{→}{\ensuremath{\rightarrow}}
+\newunicodechar{≤}{\ensuremath{\leq}}
+\newunicodechar{≥}{\ensuremath{\geq}}
+\newunicodechar{≈}{\ensuremath{\approx}}
+\newunicodechar{✓}{\ensuremath{\checkmark}}
+\newunicodechar{–}{--}
+\newunicodechar{—}{---}
+% Added for this document: every non-ASCII character it uses has a declaration, so the build
+% does not depend on the input encoding guessing right.
+\newunicodechar{σ}{\ensuremath{\sigma}}
+\newunicodechar{β}{\ensuremath{\beta}}
+\newunicodechar{λ}{\ensuremath{\lambda}}
+\newunicodechar{τ}{\ensuremath{\tau}}
+\newunicodechar{Σ}{\ensuremath{\Sigma}}
+\newunicodechar{Δ}{\ensuremath{\Delta}}
+\newunicodechar{×}{\ensuremath{\times}}
+\newunicodechar{·}{\ensuremath{\cdot}}
+\newunicodechar{²}{\textsuperscript{2}}
+\newunicodechar{³}{\textsuperscript{3}}
+\newunicodechar{∈}{\ensuremath{\in}}
+\newunicodechar{⇒}{\ensuremath{\Rightarrow}}
+\newunicodechar{≈}{\ensuremath{\approx}}
+\newunicodechar{…}{\ldots}
+\newunicodechar{‰}{\textperthousand}
+\usepackage{etoolbox}
+\AtBeginEnvironment{longtable}{\footnotesize}
+\AtBeginEnvironment{tabular}{\footnotesize}
+\usepackage{fancyhdr}
+\pagestyle{fancy}\fancyhf{}
+\rhead{\small D7065E\,--\,Architecture Document}
+\lhead{\small Ventilation fault detection}
+\cfoot{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\usepackage{titlesec}
+% The label argument is what titlesec prints in front of the title. It printed nothing at all
+% while numbering was off, which is why the numbers had to be typed into the titles. A section
+% and an appendix letter carry a period after the number and a subsection does not, exactly as
+% the typed ones did; the table of contents takes its number from \thesection and so prints it
+% without the period, which is LaTeX's own convention and the one place the look changes.
+\titleformat{\section}{\Large\bfseries}{\thesection.}{0.6em}{}
+\titleformat{\subsection}{\large\bfseries}{\thesubsection}{0.5em}{}
+\usepackage{microtype}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.16}
+% The dynamic view is half again wider than it is tall (1.5:1), which on a portrait page shrinks
+% it to the point of being unreadable in print, so it gets a rotated page of its own. The
+% component view needed the same treatment at almost 4:1; it is laid out downwards now and is a
+% portrait figure at 0.78:1, so it no longer does.
+\usepackage{pdflscape}
+\usepackage{refcount}
+% The span between two labels, inclusive, as a number. Used for the page counts on the title page:
+% hand-typed counts are exactly the thing that rots when a paragraph moves.
+\newcommand{\pagespan}[2]{\the\numexpr\getpagerefnumber{#2}-\getpagerefnumber{#1}+1\relax}
+\setlength{\emergencystretch}{2em}
+
+% --- this document's own helpers -------------------------------------------
+% A visible marker for a number that does not exist yet. Nothing in this report may be mistaken
+% for a measurement, so every gap is tagged rather than quietly left out.
+\definecolor{pendingred}{rgb}{0.70,0.10,0.10}
+\newcommand{\pending}[1]{{\color{pendingred}\textbf{[PENDING:} \textit{#1}\textbf{]}}}
+\newcommand{\figcap}[1]{\noindent{\footnotesize\emph{#1}}\par\vspace{0.6em}}
+% Facts quoted in more than one section, defined once. Changing the test count, the service count
+% or the harness's experiment count is one edit in facts.tex, not a grep across sections/.
+\input{facts}
+% ---------------------------------------------------------------------------
+
+\begin{document}
+
+\input{sections/00-front-matter}
+
+{
+\hypersetup{linkcolor=black}
+\setcounter{tocdepth}{3}
+% A two-level number is set in a fixed-width box in the contents, and article's default 2.3em is
+% narrower than 13.10 and 13.11, which ran into their own titles the moment the numbers became
+% real. The box is widened to fit the widest number this document has.
+\makeatletter
+\renewcommand*\l@subsection{\@dottedtocline{2}{1.5em}{3.2em}}
+\makeatother
+\tableofcontents
+}
+
+\input{sections/01-summary}
+\input{sections/02-use-case}
+\input{sections/03-requirements}
+\input{sections/04-architecture}
+\input{sections/05-interfaces}
+\input{sections/06-physical-model}
+\input{sections/07-services-and-pipeline}
+\input{sections/08-behaviour}
+\input{sections/09-deployment}
+\input{sections/10-test-plan}
+\input{sections/11-evaluation}
+\input{sections/12-dashboard}
+\input{sections/13-risks}
+
+% --- Appendices ---------------------------------------------------------------
+% The body above is the report. What follows is the supporting depth each body
+% section cross-references: nothing here is evidence the body does not point at.
+\appendix
+\clearpage
+\vspace*{\fill}
+\begin{center}
+{\LARGE Appendices\par}
+\vspace{0.6em}
+\parbox{0.68\linewidth}{\footnotesize
+\textbf{The report ends here.} It is Sections \ref{sec:1}--\ref{sec:13},
+pp.~\pageref{sec:1}--\pageref{sec:13end} (\pagespan{sec:1}{sec:13end}~pages), and it is complete on its
+own: every verdict, every decision and every limitation is stated there.\par
+\vspace{0.6em}
+What follows is \pagespan{sec:A}{sec:Kend}~pages of supporting depth, cross-referenced from the
+body. Nothing in these appendices is evidence the body does not already point at from the place it
+is needed; what is only here is the working.\par}
+\end{center}
+\vspace*{\fill}
+\clearpage
+
+\input{sections/appendix-a-requirements}
+\input{sections/appendix-b-views}
+\input{sections/appendix-c-parameters}
+\input{sections/appendix-d-diagnosis}
+\input{sections/appendix-e-second-lever}
+\input{sections/appendix-f-evaluation}
+\input{sections/appendix-g-measurements}
+\input{sections/appendix-h-dashboard}
+\input{sections/appendix-i-risks}
+\input{sections/appendix-j-register}
+\input{sections/appendix-k-suite}
+
+\end{document}

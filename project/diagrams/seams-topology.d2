@@ -1,0 +1,51 @@
+# N1, Topology.java — TIER 3, NOT A SEAM, and the most important figure in the set.
+#
+# Every other figure here can be read as good news. This one is the correction to all of them,
+# and it is what an examiner reaches for after being shown a clean sensor seam: "so what happens
+# to Topology.java when the real room has different design flows?"
+#
+# It is an interface of static members in shared/, linked by all seven processes, with no port in
+# front of it and no injection point. Its plant numbers are read by control classes in six of the
+# seven, and thirty-four main-source files import it. A real building edits it, which recompiles
+# all seven — and the numbers do not move independently, because the CUSUM slack and limit are
+# tuned to the 30 ppm sensor sigma and moving one without the others invalidates the T-04 spike.
+#
+# So K1 is a clean WIRE and not a clean SUBSTITUTION: a real sensor changes nothing about the
+# payload and everything about what the monitor's residual means. ZONE_COUNT is the one
+# configurable part, and it is a scaling knob rather than a seam — it cannot express a different
+# building. The full argument, with every constant and every reader, is seams.md § N1.
+#
+# VERIFIED AGAINST: Topology.java:18, the constants :25-:93, the rooms :171-179, the tuning note
+# :65-77, the sizing note :27-38, ZONE_COUNT :118 and :203-226, the deployable ceiling :150; the
+# readers ZoneObserver.java:82, :104, :349, AhuFlowModel.java:79, :199, PlantState.java:45,
+# CompensationSolver.java:54, SupervisionService.java:221-222, ControlSettings.java:104,
+# HvacCommandApplier.java:67, Co2MassBalance.java:27, SensorModel.java:30, :40, RoomLayer.java:16,
+# :29; and a repository-wide grep for the import.
+direction: down
+
+classes: {
+  contract: { shape: hexagon; style.stroke-width: 2 }
+  port: { shape: parallelogram; style.stroke-width: 2 }
+  t1: { style.stroke: "#1e8449"; style.fill: "#eafaf1" }
+  t2: { style.stroke: "#b9770e"; style.fill: "#fdf3e3" }
+  t3: { style.stroke: "#c0392b"; style.fill: "#fdedec"; style.stroke-dash: 4 }
+  box: { style.stroke-width: 2 }
+  doc: { shape: document; style.fill: transparent }
+}
+
+topo: "N1 · Topology.java\nTIER 3 — not a seam" { class: t3 }
+nums: "the plant, hard-coded\nflows · sigmas · CUSUM k and h" { class: box }
+noport: "no port · no injection point" { class: box }
+readers: "read by control classes in six of seven\n34 files import it" { class: box }
+real: "a real building edits it\nrecompiles all seven" { class: box }
+tuned: "CUSUM k, h tuned to the sensor sigma\nmoving one voids T-04" { class: box }
+verdict: "so K1 is a clean WIRE,\nnot a clean SUBSTITUTION" { class: t3 }
+md: "every constant, every reader\nseams.md § N1" { class: doc }
+
+topo -> nums
+topo -> noport
+nums -> readers
+readers -> real
+real -> tuned
+real -> verdict
+verdict -> md

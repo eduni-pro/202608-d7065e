@@ -1,0 +1,63 @@
+# Substitution seams, overview — the shape of the system and WHERE the contract seams are.
+#
+# Deliberately sparse: components, the queue, both control loops, and the six contract-seam
+# markers. Nothing is argued here. Each marker is a key; every key has a section in seams.md and
+# a figure of its own:
+#   K1 seams-sensor  K2 seams-supervisor  K3/K6 seams-monitor  K4/K5 seams-actuator
+#
+# The six PORT seams (P1-P6) are not marked here, because they do not sit between two components
+# on this canvas — each sits in front of one piece of infrastructure, and is drawn on the figure
+# for that boundary: seams-plant, seams-transport, seams-storage, seams-clock. The four
+# boundaries that are NOT seams (N1-N4) are likewise on their own figures. timescaledb is
+# reached through P5 and is drawn on seams-storage.d2 for the same reason.
+#
+# Shape and colour are defined in seams-legend.d2. Loop structure is seams-loops.d2.
+#
+# Every edge points the way the call goes: the message direction for MQTT, the caller's direction
+# for REST and SQL. Verified against Topics.java:10-58, the subscribe calls at
+# DamperControlJob.java:91-92, MonitorRuntime.java:109-113, FaultSubscription.java:40-42,
+# DamperActuatorMain.java:55-56 and DashboardRuntime.java:49-55, and the publish calls at
+# Co2Sampler.java:137, DamperControlJob.java:122, ZoneMonitor.java:722 and :732,
+# SupervisionService.java:265, :325 and :336, and ServiceResource.java:94.
+direction: down
+
+classes: {
+  contract: { shape: hexagon; style.stroke-width: 2 }
+  port: { shape: parallelogram; style.stroke-width: 2 }
+  t1: { style.stroke: "#1e8449"; style.fill: "#eafaf1" }
+  t2: { style.stroke: "#b9770e"; style.fill: "#fdf3e3" }
+  t3: { style.stroke: "#c0392b"; style.fill: "#fdedec"; style.stroke-dash: 4 }
+  box: { style.stroke-width: 2 }
+  doc: { shape: document; style.fill: transparent }
+}
+
+plant: "plant\nBuildSim + physics-simulator" { class: box }
+sensor: "co2-sensor\nsensing" { class: box }
+broker: "mosquitto\nqueue" { shape: queue; class: box }
+inner: "dcv-controller\ninner loop · ~1 s" { class: box }
+outer: "fault-monitor\nouter loop · ~60 s" { class: box }
+sup: "supervisor\nsupervision" { class: box }
+act: "damper-actuator\nactuation" { class: box }
+dash: "dashboard\nview · publishes the service report" { class: box }
+
+k1: "K1 · sensing seam" { class: [contract; t2] }
+k2: "K2 · supervision seam" { class: [contract; t2] }
+k3: "K3 · diagnosis seam" { class: [contract; t1] }
+k4: "K4 · inner-loop seam" { class: [contract; t2] }
+k5: "K5 · actuation seam" { class: [contract; t2] }
+k6: "K6 · service report" { class: [contract; t1] }
+
+sensor -> k1
+k1 -> broker: "readings/+/co2 · fan-power"
+inner <-> k4
+k4 <-> broker: "commands/{zone}/damper"
+outer <-> k3
+k3 <-> broker: "faults · residuals"
+sup <-> k2
+k2 <-> broker: "strategy · fan-speed"
+broker -> k5
+k5 -> act
+dash -> k6
+k6 -> broker: "service/{zone}"
+act -> plant
+sensor -> plant

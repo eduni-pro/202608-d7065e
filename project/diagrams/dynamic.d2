@@ -1,0 +1,51 @@
+# T-31 — C4 dynamic diagram: the headline scenario, a damper stuck at 0.15 in A115, the
+# meeting room (132 m3, 10 seats). Same containers and topics as container.d2 and plan §3.
+# Steps 1-8 are the inner loop at ~1 s; steps 9-21 the outer loop at ~60 s. Confirmation is not
+# one cycle: the case opens as SUSPECT when S passes 0.6 h, and the statistic must then hold above
+# h for confirmPersistenceCycles = 2 consecutive cycles. That is where one of R-1's fifteen
+# minutes goes, and it is cheaper than buying the same R-3 margin by raising h.
+direction: down
+
+bs: "BuildSim\n[Software System]\nSensor values, actuator state,\nroom layers, alerts" { shape: cylinder }
+tech: "Facilities technician\n[Person]" { shape: person }
+
+sys: "Ventilation fault detection  [System]" {
+  style.stroke-dash: 4
+  style.fill: transparent
+
+  sim: "physics-simulator\n[Container: Java 25]\nCO2 balance, AHU flow\nsplit, fault injection"
+  sensor: "co2-sensor\n[Container: Java 25]\nSix CO2 values and\nthe AHU fan power"
+  broker: "mosquitto\n[MQTT]" { shape: queue }
+  ctrl: "dcv-controller\n[Container: Quarkus]\nInner loop ~1 s"
+  act: "damper-actuator\n[Container: Java 25]\nSix dampers and the fan"
+  mon: "fault-monitor\n[Container: Quarkus]\nOuter loop ~60 s.\nEvents only, no commands"
+  sup: "supervisor\n[Container: Quarkus]\nDegrade, compensate,\nwork order"
+
+  note: "Why the trim reaches A115\nOne AHU, one damper per room (ADR-0008):\nQ_i = Q_fan · a_i / Σ a_j. Trimming the five healthy\ndampers and raising the fan pushes flow through the\none damper still frozen at 0.15 — which is also why\ncompensation only works while that damper is open\nat all (R-2's bound)." {
+    shape: page
+    style.stroke-dash: 2
+  }
+}
+
+sys.sim -> bs: "1: A115 fills, 10 people;\nCO2 past 800 then 1000 ppm [REST]"
+bs -> sys.sensor: "2: read six CO2 values\nand fan power [REST]"
+sys.sensor -> sys.broker: "3: readings/A115/co2 {1020 ppm},\nreadings/AHU-A120/fan-power {137 W, s = 0.70} [MQTT]"
+sys.broker -> sys.ctrl: "4: readings/A115/co2 [MQTT]"
+sys.ctrl -> sys.broker: "5: commands/A115/damper\n{position 1.00, cmd-31} [MQTT]"
+sys.broker -> sys.act: "6: commands/A115/damper [MQTT]"
+sys.act -> bs: "7: set A115-damper = 1.00 [REST]"
+bs -> sys.sim: "8: actuator state — vane frozen\nat 0.15, Q_A115 unchanged [REST]"
+
+sys.broker -> sys.mon: "9: the same cmd-31, plus\nco2 and fan power [MQTT]"
+sys.mon -> sys.mon: "10: cycle 1 — predict the fall cmd-31 owed us;\nthe published r = measured - predicted, but the\nCUSUM accumulates measured - ceiling, which\ncoincides with it in a room at design occupancy\n— the case drawn here. S = max(0, S + r - 30).\nS passes the suspicion threshold 0.6 h = 90 ppm\n⇒ SUSPECT. No fault is published on suspicion"
+sys.mon -> sys.broker: "11: residuals/A115\n{r, S, commandId cmd-31} [MQTT]"
+sys.mon -> sys.mon: "12: cycles 2 and 3, 60 s apart — S holds above\nh = 150 ppm on BOTH. Two consecutive cycles is\nwhat confirms (confirmPersistenceCycles = 2): a\nsingle noise tail is gone by the next sample because\nthe CUSUM subtracts k from every one, while a stuck\ndamper clears h on every cycle from the first"
+sys.mon -> sys.mon: "13: only now, classify — fan power flat at 137 W,\nthe other five residuals quiet, overnight decay\ncorrect ⇒ STUCK_DAMPER"
+sys.mon -> sys.broker: "14: faults/A115 {CONFIRMED,\nSTUCK_DAMPER, caseId} [MQTT]"
+sys.broker -> sys.sup: "15: faults/A115 [MQTT]"
+sys.sup -> sys.broker: "16: strategy/A115 {DEGRADED};\nstrategy/the five {COMPENSATING, trim} [MQTT]"
+sys.sup -> sys.broker: "17: commands/AHU-A120/fan-speed\n{s raised 0.70 -> 1.00}, so the five\nkeep their own flows (R-7) [MQTT]"
+sys.broker -> sys.act: "18: the five trims and\nthe fan speed [MQTT]"
+sys.act -> bs: "19: set five dampers and\nAHU-A120 fan speed [REST]"
+sys.sup -> bs: "20: work order as an alert:\nA115 damper stuck at 0.15 [REST]"
+bs -> tech: "21: A115 highlighted in the\n3D view, work order attached"

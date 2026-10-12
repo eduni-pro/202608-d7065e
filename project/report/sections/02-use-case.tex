@@ -1,0 +1,55 @@
+\section{Use case and building context (BuildSim)}\label{sec:2}
+
+\textbf{The building.} The system controls six rooms on level 0 of the A-building, modelled in
+\textbf{BuildSim}. BuildSim is the \emph{shared state} of the cyber-physical system: it owns the
+building model (levels, rooms, equipment), exposes a REST API to register devices and to read and
+write their state, and streams live state to a 3D web viewer. BuildSim is not modified; it is
+instrumented. That seam is the boundary between the physical half of a cyber-physical system (the
+building, behind BuildSim's API) and the cyber half (my processes), and keeping it clean is what
+would let the same software later drive a real air handler.
+
+\textbf{BuildSim provides the rooms and no physics}, so the air, the people and the plant are all
+simulated here (Section \ref{sec:6}). How the processes use BuildSim is fixed and narrow:
+
+\begin{itemize}
+\tightlist
+\item \texttt{physics-simulator} is the \emph{only} process that touches the environment. It reads
+  the current damper and fan-speed actuator state from BuildSim, advances the CO₂ balance and the
+  air handler, and writes the resulting sensor values back. This is what closes the loop.
+\item \texttt{co2-sensor} reads the six room CO₂ values and the one air handler's fan power from
+  BuildSim and publishes them to the broker. It emulates devices that observe and report; it does
+  not generate values.
+\item \texttt{damper-actuator} applies validated commands to BuildSim: the six dampers and the
+  one fan speed. BuildSim remains the single source of truth for actuator state.
+\item \texttt{dashboard} repaints BuildSim's own floorplan as room layers, and \texttt{supervisor}
+  writes work orders as BuildSim alerts. Those two are the only writers of operator-facing state.
+\end{itemize}
+
+\textbf{Actors.} The \textbf{facilities technician} receives the work order and repairs the
+damper, which is the only external event that can clear a latched diagnosis. \textbf{Room
+occupants} are the CO₂ source and the people whose comfort R-2 protects; they influence the system
+only by being present. Neither actor is on the control path: both loops run autonomously.
+
+\textbf{The scenario the demo tells.} At 09:00 the meeting room A115 is booked and ten people
+arrive. CO₂ climbs past 800 ppm, the controller opens the damper, and at 1020 ppm it commands the
+damper fully open. The damper is frozen at 0.15, so the airflow never changes and CO₂ keeps
+rising. The monitor saw the same command, predicted the fall that opening from 0.15 to 1.00 owed,
+and instead watches the gap grow until the accumulated residual is too large and too persistent to
+be sensor noise. Plant fan power flat argues against a blocked filter; a correct overnight decay
+to outdoor level argues against a drifting sensor; the monitor publishes a confirmed
+\texttt{STUCK\_DAMPER}. The supervisor degrades A115 so the inner loop stops commanding it, trims
+the five healthy dampers and raises the shared fan so the five keep the airflow they had, and
+raises a work order on the 3D view. A115's CO₂ falls back under the limit, and \textbf{the
+diagnosis stays latched}, because the thing that made the residual shrink was the response to the
+diagnosis, not a repair. That last sentence is the hardest property in the design and the one the
+oral will probe.
+
+\textbf{Why it matters.} A demand-controlled system that silently stops ventilating is worse than no
+demand control at all: the fixed-schedule system it replaced would at least have kept moving air.
+Faults in ventilation equipment are undramatic: a damper that no longer modulates produces no
+alarm, no noise and no visible symptom, only a room that is slightly worse to be in for however many
+weeks pass before somebody complains. A loop that can tell ``this room is busy'' from ``this room is
+broken'' is what makes demand control safe to deploy, and that is the whole use case. Ventilation
+fault detection is also only one of several systems that would run on this same building model
+(fire detection, access control and energy management would each be their own), and this report
+designs one of them.

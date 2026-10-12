@@ -1,0 +1,111 @@
+T-23 / T-20 — one documented end-to-end demo-profile run, both UIs captured
+=========================================================================
+
+REAL_EPOCH=2026-10-06T11:41:37Z
+T0_epoch=1791286897
+T0_local=Tue  6 Oct 2026 13:41:37 CEST
+SEED=42 TIME_SCALE=60 START_AT=2026-10-09T07:45:00Z (compose defaults)
+FAULT_SPEC=STUCK_DAMPER:A115:0.15:T+5400 (default; onset simulated 09:15 = +90 s real)
+BUILDSIM_PORT=9091
+commit=fee67485c85b279f9b48beb697c4f49674f387ff
+java=openjdk version "25.0.3" 2026-04-21 LTS
+chrome=Chrome/154.0.8037.98
+
+Capture mechanism
+-----------------
+Chrome headless=new driven over the DevTools Protocol from a Node script using Node's
+built-in WebSocket; no dependency was added. Three host findings worth recording, because
+each one cost a run to learn:
+  * A cold --user-data-dir hangs for minutes on this host. A warm profile starts in ~1 s.
+  * --virtual-time-budget never completes against real network requests. Without it the
+    screenshot is written in about a second.
+  * The 3D viewer paints its scene long after the load event, behind a splash overlay, so
+    the shot polls the overlay away rather than waiting a fixed delay.
+  * macOS screencapture works only while the display is awake; unattended it returns black.
+
+State timeline, every transition, in simulated time
+---------------------------------------------------
+t|zone|state|classification
+07:52|A115|BLIND|NONE
+07:52|A116A|BLIND|NONE
+07:52|A124|BLIND|NONE
+07:52|A125|BLIND|NONE
+07:52|A125A|BLIND|NONE
+07:53|A115|WARMUP|NONE
+07:53|A116A|WARMUP|NONE
+07:53|A124|WARMUP|NONE
+07:53|A125|WARMUP|NONE
+07:53|A125A|WARMUP|NONE
+07:54|A145|HEALTHY|NONE
+07:55|A115|HEALTHY|NONE
+07:55|A116A|HEALTHY|NONE
+07:55|A124|HEALTHY|NONE
+07:55|A125|HEALTHY|NONE
+07:55|A125A|HEALTHY|NONE
+10:20|A115|SUSPECT|NONE
+10:23|A115|CONFIRMED|STUCK_DAMPER
+10:55|A115|COMPENSATING|STUCK_DAMPER
+(19 rows)
+
+Journal row counts at teardown
+------------------------------
+k|count
+readings|1801
+decisions|25
+commands|132
+strategies|1
+fan_power|301
+(5 rows)
+
+Final per-zone state
+--------------------
+zone|t|state|classification
+A115|12:55|COMPENSATING|STUCK_DAMPER
+A116A|07:55|HEALTHY|NONE
+A124|07:55|HEALTHY|NONE
+A125|07:55|HEALTHY|NONE
+A125A|07:55|HEALTHY|NONE
+A145|07:54|HEALTHY|NONE
+(6 rows)
+
+Commands issued per zone (the blank zone is the air handler, not a room)
+-----------------------------------------------------------------------
+zone|count
+A115|76
+A124|12
+A125|32
+A125A|4
+A145|4
+|4
+(6 rows)
+
+All four room layers on the wire after the collection fix
+--------------------------------------------------------
+  co2       CO2               420..1500   6 zones
+       {'A115': 562, 'A116A': 478.1, 'A124': 677.6, 'A125': 717, 'A125A': 729.4, 'A145': 747.4}
+  residual  Residual         -100..500    6 zones
+       {'A115': -100, 'A116A': 5.3, 'A124': -3.2, 'A125': -15.6, 'A125A': 65.0, 'A145': -34.6}
+  cusum     CUSUM               0..300    6 zones
+       {'A115': 0, 'A116A': 0, 'A124': 0, 'A125': 0, 'A125A': 0, 'A145': 0}
+  state     Monitor state       0..3      6 zones
+       {'A115': 3, 'A116A': 0, 'A124': 0, 'A125': 0, 'A125A': 0, 'A145': 0}
+
+SUSPECT, caught by a 1 Hz poll and not by a screenshot
+------------------------------------------------------
+  295 one-second samples over the run; A115 read SUSPECT in 2 of them:
+    +0155 s  CUSUM 108.5 ppm  residual +274.9 ppm
+    +0157 s  CUSUM 153.5 ppm  residual +190.8 ppm
+  The page refreshes every 5 s, so a two-second state may never be drawn at all.
+
+R-5 — one diagnosis rebuilt from the journal, live
+--------------------------------------------------
+caseId=aecd9137-6c3d-42a8-ac11-438ef3d9d2d6
+  GET /api/cases/<caseId> returned 77248 bytes, 445 events
+
+Run is not reproducible across runs — four runs, identical SEED/TIME_SCALE/START_AT
+-----------------------------------------------------------------------------------
+  A115 confirmed at simulated 10:16, 10:17, 10:19 and 10:23 (spread 7 simulated minutes).
+  The sensor model draws once per Euler sub-step and the sub-step count follows real
+  elapsed time, so host scheduling decides how many draws a simulated minute contains.
+  Teardown is at +313 s, ahead of the +336 s spurious A116A confirmation this profile
+  documents, so that known R-3 false alarm is outside the captured window by design.

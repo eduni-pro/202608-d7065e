@@ -1,0 +1,298 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+\PassOptionsToPackage{dvipsnames,svgnames,x11names}{xcolor}
+%
+\documentclass[
+  11pt,
+]{article}
+\usepackage{amsmath,amssymb}
+\usepackage{lmodern}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math}
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{xcolor}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\IfFileExists{bookmark.sty}{\usepackage{bookmark}}{\usepackage{hyperref}}
+\hypersetup{
+  pdftitle={Project Proposal (Week 2), Ventilation Fault Detection, Diagnosis and Graceful Degradation},
+  pdfauthor={Wassim Akachi, Project group 5},
+  colorlinks=true,
+  linkcolor={RoyalBlue},
+  filecolor={Maroon},
+  citecolor={Blue},
+  urlcolor={Blue},
+  pdfcreator={LaTeX}}
+\urlstyle{same} % disable monospaced font for URLs
+\usepackage[a4paper,margin=2.2cm,top=1.9cm,bottom=1.7cm]{geometry}
+\usepackage{longtable,booktabs,array}
+\usepackage{calc} % for calculating minipage widths
+% Correct order of tables after \paragraph or \subparagraph
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
+\makeatother
+% Allow footnotes in longtable head/foot
+\IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
+\makesavenoteenv{longtable}
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{-\maxdimen} % remove section numbering
+\usepackage{newunicodechar}
+\usepackage{textcomp}
+\usepackage{amssymb}
+\newunicodechar{°}{\textdegree}
+\newunicodechar{₂}{\textsubscript{2}}
+\newunicodechar{→}{\ensuremath{\rightarrow}}
+\newunicodechar{≤}{\ensuremath{\leq}}
+\newunicodechar{≥}{\ensuremath{\geq}}
+\newunicodechar{≈}{\ensuremath{\approx}}
+\newunicodechar{✓}{\ensuremath{\checkmark}}
+\newunicodechar{–}{--}
+\newunicodechar{—}{---}
+\usepackage{etoolbox}
+\AtBeginEnvironment{longtable}{\footnotesize}
+\AtBeginEnvironment{tabular}{\footnotesize}
+% edit this one line to re-date the document; \today would drift on every rebuild
+\newcommand{\propdate}{2026-09-10}
+\usepackage{fancyhdr}
+\newcommand{\propfoot}{%
+  \lfoot{\footnotesize D7065E\,--\,Project group 5, Wassim Akachi}%
+  \cfoot{\footnotesize \thepage}%
+  \rfoot{\footnotesize \propdate}}
+\pagestyle{fancy}\fancyhf{}
+\rhead{\small D7065E\,--\,Project Proposal}
+\lhead{\small Week 2 Proposal}
+\propfoot
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.4pt}
+% \maketitle forces the "plain" style on page 1; give it the footer but no
+% header, since the title block already names the document there
+\fancypagestyle{plain}{%
+  \fancyhf{}\propfoot
+  \renewcommand{\headrulewidth}{0pt}%
+  \renewcommand{\footrulewidth}{0.4pt}}
+\usepackage{titlesec}
+\titleformat{\section}{\Large\bfseries}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\large\bfseries}{\thesubsection}{0.5em}{}
+\titlespacing*{\subsection}{0pt}{7pt plus 2pt minus 1pt}{3pt}
+\usepackage{microtype}
+\setlength{\emergencystretch}{2em}
+\ifLuaTeX
+  \usepackage{selnolig}  % disable illegal ligatures
+\fi
+\usepackage{enumitem}
+\setlist[itemize]{topsep=3pt,itemsep=2pt,parsep=0pt,leftmargin=1.2em}
+\setlength{\parskip}{4.2pt plus 1pt minus 1pt}
+
+\title{Project Proposal (Week 2), Ventilation Fault Detection, Diagnosis
+and Graceful Degradation}
+\usepackage{etoolbox}
+\makeatletter
+\providecommand{\subtitle}[1]{% add subtitle to \maketitle
+  \apptocmd{\@title}{\par {\large #1 \par}}{}{}
+}
+\makeatother
+\subtitle{D7065E, Embedded Intelligence at the Edge}
+\author{Wassim Akachi, Project group 5 (solo)}
+\date{}
+
+\begin{document}
+\maketitle
+
+\hypertarget{summary}{%
+\subsection{Summary}\label{summary}}
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 2\tabcolsep) * \real{0.2200}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 2\tabcolsep) * \real{0.7800}}@{}}
+\toprule
+\endhead
+\textbf{Use case} & Demand-controlled ventilation that detects, diagnoses
+and survives its own equipment faults \\
+\textbf{Pitch} & A stuck damper and a room full of people look identical
+to a CO₂ controller. A model of what the last command should have
+achieved tells them apart, names the fault, and keeps the air breathable
+until someone repairs it. \\
+\textbf{Repository} & \url{https://github.com/eduni-pro/202608-d7065e}, in subfolder \texttt{project/} \\
+\bottomrule
+\end{longtable}
+
+\hypertarget{use-case-and-why}{%
+\subsection{1. Use case, and why}\label{use-case-and-why}}
+
+The system runs demand-controlled ventilation on a BuildSim office
+floor: CO₂ rises with occupancy, the controller opens a damper, the air
+is diluted, the next reading falls. The project proper is the
+\textbf{supervisory loop} on top, which decides whether that control loop
+is still \emph{working}.
+
+It was chosen because the fault is invisible to the controller, which
+only observes CO₂: a high reading looks the same whether the damper is
+stuck shut or the room is simply full. Telling those apart needs a
+\emph{model} of what the last command should have achieved, so the
+autonomous part is an inference problem rather than a threshold, and
+fault injection and degraded operation become the use case itself rather
+than an experiment bolted on at the end.
+
+\hypertarget{scenario}{%
+\subsection{2. Scenario}\label{scenario}}
+
+A room fills up and CO₂ climbs past 1000\,ppm. The controller opens the
+damper wide, but it is stuck, so the airflow never changes and CO₂ keeps
+rising. The monitor saw the same command, expected the level to fall,
+and instead watches the gap grow until it is too large and too
+persistent to be noise. Unchanged fan power argues against a blocked
+filter, a correct overnight decay argues against a drifting sensor, and
+the monitor publishes a confirmed \emph{stuck damper}. The supervisor
+degrades that room, over-ventilates its neighbour to hold the occupants
+below the limit, and raises a work order shown on the 3D view. The
+diagnosis stays latched even though the CO₂ curve now looks healthy
+again.
+
+\hypertarget{what-will-be-built}{%
+\subsection{\texorpdfstring{3. What will be built \emph{(rough
+sketch)}}{3. What will be built (rough sketch)}}\label{what-will-be-built}}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Physics simulator:} advances the CO₂ and occupancy models,
+  applies the injected fault, and writes the resulting sensor values
+  into BuildSim.
+\item
+  \textbf{Sensor and actuator processes:} publish CO₂ and fan power read
+  from BuildSim; validate and apply damper commands back to BuildSim,
+  which stays the single source of building state.
+\item
+  \textbf{Controller:} the inner loop, choosing a damper position per
+  zone from CO₂.
+\item
+  \textbf{Monitor and supervisor:} the outer loop, split in two on
+  purpose. The monitor predicts the response each command should
+  produce, watches the residual and names the fault; it raises events
+  and \textbf{never commands anything}. The supervisor acts on a
+  confirmed fault, degrading the zone, compensating from a neighbour and
+  issuing the work order.
+\item
+  \textbf{Storage and dashboard:} readings, commands, residuals and
+  decisions land in a time-series store that feeds both the evaluation
+  and a dashboard overlaying residual and fault state per zone on the 3D
+  view.
+\end{itemize}
+
+Each piece runs as its \textbf{own process}, communicating through
+defined interfaces: a message stream for readings, commands and fault
+events, BuildSim's API for building state. Splitting monitor from
+supervisor is deliberate, a crashing monitor must not be able to stop
+ventilation, and a wrong diagnosis must not be able to command anything
+by itself.
+
+\hypertarget{simulating-the-building}{%
+\subsection{4. Simulating the building}\label{simulating-the-building}}
+
+BuildSim provides the rooms but no physics, so both the air and the
+people are simulated.
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Physical processes:} a well-mixed CO₂ balance per zone,
+  production rising with the number of people, dilution set by the
+  airflow the commanded damper position allows, and volume taken from
+  the room's floor area. Commands feed back into the model, so the loop
+  closes. Fan power is derived from the flow, so a blocked filter costs
+  more power for less air.
+\item
+  \textbf{The equipment fault:} injected \emph{between} the command and
+  its physical effect, a stuck damper ignores the command, a blocked
+  filter scales the flow down, and a drifting sensor adds a slow offset
+  at the sensor rather than in the room. This model is invented rather
+  than measured, and the report will say so.
+\item
+  \textbf{Movement of people (occupancy):} a weekday schedule per room
+  type, arrivals, a lunch dip, departures, booked meetings, empty nights
+  and weekends, with randomness so no two days are alike. The empty
+  nights double as the reference condition for checking the sensor: with
+  nobody in the building, CO₂ \emph{must} decay to the outdoor level.
+\end{itemize}
+
+\hypertarget{the-autonomous-part}{%
+\subsection{5. The autonomous part}\label{the-autonomous-part}}
+
+There are two decisions, and only the second is interesting. The
+\textbf{controller} sets each zone's damper position from CO₂ with
+hysteresis and a freshness check, deliberately a plain rule.
+
+The \textbf{monitor} is the autonomous service proper. Starting
+approach: predict the CO₂ response the command should have produced,
+take the residual against the measurement, and accumulate it over time
+(a one-sided CUSUM) so a small persistent bias is caught long before a
+raw threshold would fire. A short rule tree over residual, fan power and
+overnight decay separates the three faults, with an explicit
+\emph{unclassified} branch that alerts a human rather than acting. A
+learned alternative will be measured against that baseline on identical
+seeds; if it does not win, the report will say so and keep the
+baseline.
+
+\hypertarget{biggest-unknowns-risks}{%
+\subsection{6. Biggest unknowns \& risks}\label{biggest-unknowns-risks}}
+
+\begin{itemize}
+\tightlist
+\item
+  The prediction wants to know occupancy, the one thing a real building
+  does not. The intended answer is to judge commanded \emph{step
+  responses}, whose shape depends mainly on airflow and volume rather
+  than head-count, but that is unproven under realistic noise.
+\item
+  Whether the three fault signatures stay separable once sensor noise is
+  realistic, or two of them collapse into one class.
+\item
+  \textbf{Masking:} once the supervisor compensates, CO₂ recovers, the
+  residual shrinks, and a naive monitor clears a fault that is still
+  there. Latching and occasional active probing are the intended answer;
+  this is the risk most likely to bite.
+\item
+  The fault model and the detector are both mine, so the evaluation
+  measures the detector against my own generator.
+\end{itemize}
+
+\hypertarget{first-step-rough-plan}{%
+\subsection{7. First step \& rough plan}\label{first-step-rough-plan}}
+
+The riskiest assumption is that a residual separates a stuck damper from
+a busy room at all, so that is the first prototype: one zone, offline, a
+step response with and without the fault, and a plot of the two
+residuals. If they do not separate, the use case changes now rather than
+in week 8. After that, one zone end-to-end to prove the loop closes;
+monitor and supervisor split into their own processes; more zones,
+storage and the dashboard; the fault-injection harness; the experiments,
+detection delay, false alarms and a scaling run to the breaking point;
+then report and demo.
+
+\end{document}

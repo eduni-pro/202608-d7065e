@@ -1,0 +1,74 @@
+# C4 deployment diagram (T-10, T-30). The supplementary C4 view that says where the containers
+# of container.d2 actually run. Moved here from report/figures/ so that every figure in the
+# report has its source beside the other five in project/diagrams/.
+#
+# C4 deployment vocabulary, used as C4 defines it: a *deployment node* is something a container
+# runs inside — a machine, an engine, a network — and may nest; a *container instance* is one
+# running instance of a container from level 2. The grouping is therefore by what hosts what,
+# not by the role a service plays, which is what the previous revision grouped by.
+#
+# Every edge points the way the call goes, the same rule as context.d2 and container.d2: a read
+# is drawn from the reader outward. The previous revision drew buildsim -> co2-sensor and
+# timescaledb -> dashboard, which reversed both, and it carried no broker -> dashboard edge
+# although the dashboard subscribes six filters.
+#
+# Sources: project/docker-compose.yml (ten services, all restart: unless-stopped, five
+# published ports all bound to 127.0.0.1, depends_on with health conditions),
+# project/Makefile, project/deploy/.
+direction: down
+
+tech: "Facilities technician\n[Person]" { shape: person }
+
+laptop: "Development laptop  [Deployment Node: Apple silicon, macOS]" {
+  style.stroke-dash: 4
+  style.fill: transparent
+
+  build: "Host build  [Deployment Node: JDK 25 + Maven]\nmvn package builds the jars the images copy.\nNo image carries a compiler, so the ten\nservices are reproducible from one reactor" {
+    shape: page
+    style.stroke-dash: 2
+  }
+
+  docker: "Docker Desktop  [Deployment Node: Docker Engine]" {
+    style.stroke-dash: 2
+    style.fill: transparent
+
+    net: "ventilation-fault-detection  [Deployment Node: Docker bridge network]\nEvery service restart: unless-stopped, which is what makes R-4's\ncontainer-kill experiment a recovery measurement. Five ports published,\nall on 127.0.0.1: 9090, 8080, 8081, 1883, 5432" {
+      style.stroke-dash: 2
+      style.fill: transparent
+
+      bs: "buildsim\n[Container instance: Go, built from ../buildingsim]\n:9090, healthcheck /healthz. Five services\nwait on it before they have anything to do"
+      sim: "physics-simulator\n[Container instance: java -jar, temurin:25-jre]\n:8081, fault control surface. TICK_SECONDS=1,\nSEED=42, FAULT_SPEC"
+      sensor: "co2-sensor\n[Container instance: java -jar]\nSAMPLE_SECONDS=1"
+      act: "damper-actuator\n[Container instance: java -jar]\nsix dampers and the one fan"
+      broker: "mosquitto\n[Container instance: eclipse-mosquitto:2]\n:1883, config from deploy/mosquitto" { shape: queue }
+      tsdb: "timescaledb\n[Container instance: timescale/timescaledb:latest-pg16]\n:5432, schema from deploy/timescaledb" { shape: cylinder }
+      ctrl: "dcv-controller\n[Container instance: Quarkus JVM]\ninner loop, ~1 s"
+      mon: "fault-monitor\n[Container instance: Quarkus JVM]\nCYCLE_SECONDS=60, CUSUM_K=30, CUSUM_H=150"
+      sup: "supervisor\n[Container instance: Quarkus JVM]\nthe only component that commands"
+      dash: "dashboard\n[Container instance: Quarkus JVM]\n:8080, every dependency optional, so the\npage keeps serving when the rest is down"
+    }
+  }
+}
+
+laptop.build -> laptop.docker: "docker compose build / up -d"
+
+laptop.docker.net.sim -> laptop.docker.net.bs: "REST"
+laptop.docker.net.sensor -> laptop.docker.net.bs: "REST"
+laptop.docker.net.act -> laptop.docker.net.bs: "REST"
+laptop.docker.net.sup -> laptop.docker.net.bs: "work order as an alert [REST]"
+laptop.docker.net.dash -> laptop.docker.net.bs: "room layers [REST]"
+
+laptop.docker.net.sensor -> laptop.docker.net.broker: "MQTT"
+laptop.docker.net.broker -> laptop.docker.net.act: "MQTT"
+laptop.docker.net.ctrl <-> laptop.docker.net.broker: "MQTT"
+laptop.docker.net.mon <-> laptop.docker.net.broker: "MQTT"
+laptop.docker.net.sup <-> laptop.docker.net.broker: "MQTT"
+laptop.docker.net.broker -> laptop.docker.net.dash: "MQTT"
+
+laptop.docker.net.ctrl -> laptop.docker.net.tsdb: "SQL"
+laptop.docker.net.mon -> laptop.docker.net.tsdb: "SQL"
+laptop.docker.net.sup -> laptop.docker.net.tsdb: "SQL"
+laptop.docker.net.dash -> laptop.docker.net.tsdb: "case replay [SQL]"
+
+tech -> laptop.docker.net.dash: "HTTP, :8080"
+tech -> laptop.docker.net.bs: "3D view over HTTP and\na WebSocket, :9090"

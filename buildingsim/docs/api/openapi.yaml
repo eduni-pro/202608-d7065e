@@ -1,0 +1,2231 @@
+components:
+  schemas:
+    model.Actuator:
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        state:
+          type: string
+        timestamp:
+          type: string
+        type:
+          type: string
+      type: object
+    model.ActuatorState:
+      properties:
+        state:
+          type: string
+      type: object
+    model.Alien:
+      properties:
+        id:
+          type: string
+      type: object
+    model.Building:
+      properties:
+        levels:
+          items:
+            $ref: '#/components/schemas/model.Level'
+          type: array
+          uniqueItems: false
+        name:
+          type: string
+      type: object
+    model.BulkResult:
+      properties:
+        created:
+          type: integer
+        skipped:
+          type: integer
+        total:
+          type: integer
+        version:
+          type: integer
+      type: object
+    model.ConfigResponse:
+      properties:
+        edit_mode:
+          type: boolean
+        edit_persistent:
+          type: boolean
+        host:
+          type: string
+        ui:
+          type: string
+      type: object
+    model.CoverageZone:
+      properties:
+        center:
+          description: '[x, y] in PDF coordinates (used if room is empty)'
+          items:
+            type: number
+          type: array
+          uniqueItems: false
+        color:
+          description: hex color
+          type: string
+        height:
+          description: vertical extent (3D), 0 = flat disc
+          type: number
+        id:
+          type: string
+        level:
+          description: '"level0", "level1", "level2", or "" for all floors'
+          type: string
+        name:
+          type: string
+        opacity:
+          description: 0.0 - 1.0
+          type: number
+        radius:
+          description: radius in PDF units
+          type: number
+        room:
+          description: room name to center on (resolved by browser)
+          type: string
+      type: object
+    model.CrossFloorEdge:
+      properties:
+        connector:
+          type: string
+        from_id:
+          type: integer
+        from_level:
+          type: string
+        from_name:
+          type: string
+        to_id:
+          type: integer
+        to_level:
+          type: string
+        to_name:
+          type: string
+        type:
+          description: '"stair" or "elevator"'
+          type: string
+      type: object
+    model.DecisionAlert:
+      properties:
+        id:
+          type: string
+        level:
+          type: string
+        message:
+          type: string
+        room:
+          type: string
+        severity:
+          description: info, warning, critical
+          type: string
+        timestamp:
+          type: string
+        title:
+          type: string
+      type: object
+    model.Door:
+      properties:
+        blocked:
+          type: boolean
+        entry_node_id:
+          type: integer
+        id:
+          type: string
+        kind:
+          description: door, entrance, fire_exit
+          type: string
+        level:
+          type: string
+        lock_state:
+          description: unlocked, locked, jammed
+          type: string
+        name:
+          type: string
+        position:
+          items:
+            type: number
+          type: array
+          uniqueItems: false
+        room:
+          type: string
+        state:
+          description: open, closed, blocked
+          type: string
+        timestamp:
+          type: string
+      type: object
+    model.EditorSaveResponse:
+      properties:
+        level:
+          type: string
+        persistent:
+          type: boolean
+        status:
+          type: string
+      type: object
+    model.Equipment:
+      properties:
+        actuators:
+          items:
+            $ref: '#/components/schemas/model.Actuator'
+          type: array
+          uniqueItems: false
+        category:
+          type: string
+        heading:
+          type: number
+        height:
+          type: number
+        id:
+          type: string
+        level:
+          type: string
+        name:
+          type: string
+        position:
+          items:
+            type: number
+          type: array
+          uniqueItems: false
+        room:
+          description: room label/name from the map (e.g. "1542")
+          type: string
+        sensors:
+          items:
+            $ref: '#/components/schemas/model.Sensor'
+          type: array
+          uniqueItems: false
+        status:
+          type: string
+        type:
+          type: string
+        version:
+          type: integer
+      type: object
+    model.ErrorResponse:
+      properties:
+        error:
+          type: string
+        item:
+          type: integer
+      type: object
+    model.FloorData:
+      properties:
+        graph:
+          $ref: '#/components/schemas/model.NavGraph'
+        green_lines:
+          items:
+            items:
+              items:
+                type: number
+              type: array
+            type: array
+          type: array
+          uniqueItems: false
+        labels:
+          items:
+            $ref: '#/components/schemas/model.Label'
+          type: array
+          uniqueItems: false
+        page:
+          $ref: '#/components/schemas/model.Page'
+        red_lines:
+          items:
+            items:
+              items:
+                type: number
+              type: array
+            type: array
+          type: array
+          uniqueItems: false
+        rooms:
+          items:
+            $ref: '#/components/schemas/model.Room'
+          type: array
+          uniqueItems: false
+        walkable_graph:
+          $ref: '#/components/schemas/model.NavGraph'
+        walls:
+          items:
+            items:
+              items:
+                type: number
+              type: array
+            type: array
+          type: array
+          uniqueItems: false
+      type: object
+    model.Label:
+      properties:
+        text:
+          type: string
+        x:
+          type: number
+        "y":
+          type: number
+      type: object
+    model.Level:
+      properties:
+        id:
+          description: e.g. "level0"
+          type: string
+        label:
+          description: e.g. "Floor 0"
+          type: string
+      type: object
+    model.MobileEntity:
+      properties:
+        heading:
+          type: number
+        id:
+          type: string
+        level:
+          type: string
+        name:
+          type: string
+        position:
+          items:
+            type: number
+          type: array
+          uniqueItems: false
+        room:
+          type: string
+        status:
+          type: string
+        timestamp:
+          type: string
+        transition_ms:
+          type: integer
+        type:
+          description: man, woman, group, robot, cleaning_robot, generic
+          type: string
+      type: object
+    model.MutationResponse:
+      properties:
+        status:
+          type: string
+        version:
+          type: integer
+      type: object
+    model.NavEdge:
+      properties:
+        from:
+          type: integer
+        to:
+          type: integer
+        weight:
+          type: number
+        x1:
+          type: number
+        x2:
+          type: number
+        y1:
+          type: number
+        y2:
+          type: number
+      type: object
+    model.NavGraph:
+      properties:
+        edges:
+          items:
+            $ref: '#/components/schemas/model.NavEdge'
+          type: array
+          uniqueItems: false
+        nodes:
+          items:
+            $ref: '#/components/schemas/model.NavNode'
+          type: array
+          uniqueItems: false
+      type: object
+    model.NavNode:
+      properties:
+        id:
+          type: integer
+        level:
+          description: floor level (multi-floor graph)
+          type: string
+        name:
+          type: string
+        type:
+          description: '"corridor", "entry", "room" (walkable graph)'
+          type: string
+        x:
+          type: number
+        "y":
+          type: number
+      type: object
+    model.Page:
+      properties:
+        height:
+          type: number
+        width:
+          type: number
+      type: object
+    model.Person:
+      properties:
+        icon:
+          description: '"man", "woman", or empty (defaults to "man")'
+          type: string
+        id:
+          type: string
+        name:
+          type: string
+        position:
+          items:
+            type: number
+          type: array
+          uniqueItems: false
+      type: object
+    model.Room:
+      properties:
+        area:
+          type: number
+        center:
+          items:
+            type: number
+          type: array
+          uniqueItems: false
+        id:
+          type: integer
+        name:
+          type: string
+        polygon:
+          items:
+            items:
+              type: number
+            type: array
+          type: array
+          uniqueItems: false
+        type:
+          type: string
+      type: object
+    model.RoomAppearance:
+      properties:
+        brightness:
+          type: number
+        color:
+          type: string
+        level:
+          type: string
+        room:
+          type: string
+      type: object
+    model.RoomHighlight:
+      properties:
+        color:
+          type: string
+        level:
+          type: string
+        opacity:
+          type: number
+        room:
+          type: string
+        room_id:
+          type: integer
+      type: object
+    model.RoomHighlightRequest:
+      properties:
+        color:
+          type: string
+        level:
+          type: string
+        opacity:
+          type: number
+        room:
+          type: string
+        room_id:
+          type: integer
+      type: object
+    model.RoomLayer:
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        maximum:
+          type: number
+        minimum:
+          type: number
+        opacity:
+          type: number
+        palette:
+          items:
+            type: string
+          type: array
+          uniqueItems: false
+        source:
+          type: string
+        unit:
+          type: string
+        values:
+          additionalProperties:
+            type: number
+          type: object
+      type: object
+    model.RoomOccupancy:
+      properties:
+        aliens:
+          items:
+            $ref: '#/components/schemas/model.Alien'
+          type: array
+          uniqueItems: false
+        persons:
+          items:
+            $ref: '#/components/schemas/model.Person'
+          type: array
+          uniqueItems: false
+      type: object
+    model.RouteNode:
+      properties:
+        level:
+          type: string
+        name:
+          type: string
+        room_id:
+          type: integer
+        x:
+          type: number
+        "y":
+          type: number
+      type: object
+    model.RouteResult:
+      properties:
+        distance:
+          type: number
+        path:
+          items:
+            $ref: '#/components/schemas/model.RouteNode'
+          type: array
+          uniqueItems: false
+      type: object
+    model.Sensor:
+      properties:
+        binary_value:
+          type: boolean
+        data_type:
+          description: '"binary" or "text"'
+          type: string
+        id:
+          type: string
+        name:
+          type: string
+        timestamp:
+          type: string
+        type:
+          type: string
+        unit:
+          type: string
+        value:
+          type: string
+      type: object
+    model.SensorValue:
+      properties:
+        binary_value:
+          type: boolean
+        data_type:
+          description: '"binary" or "text"'
+          type: string
+        value:
+          type: string
+      type: object
+    model.Session:
+      properties:
+        coverage:
+          items:
+            $ref: '#/components/schemas/model.CoverageZone'
+          type: array
+          uniqueItems: false
+        highlights:
+          items:
+            $ref: '#/components/schemas/model.RoomHighlight'
+          type: array
+          uniqueItems: false
+        id:
+          type: string
+        last_ws_active:
+          type: string
+        occupancy:
+          additionalProperties:
+            $ref: '#/components/schemas/model.RoomOccupancy'
+          type: object
+        route:
+          $ref: '#/components/schemas/model.RouteResult'
+        version:
+          type: integer
+        viewport:
+          $ref: '#/components/schemas/model.Viewport'
+      type: object
+    model.StatusResponse:
+      properties:
+        status:
+          type: string
+      type: object
+    model.VersionResponse:
+      properties:
+        version:
+          type: integer
+      type: object
+    model.Viewport:
+      properties:
+        floor:
+          description: '"level0", "level1", "level2"'
+          type: string
+        mode:
+          description: '"2d" or "3d"'
+          type: string
+        room:
+          description: room name to center on (e.g. "A2306")
+          type: string
+        zoom:
+          type: number
+      type: object
+    model.VisualEffect:
+      properties:
+        color:
+          type: string
+        height:
+          type: number
+        id:
+          type: string
+        intensity:
+          type: number
+        label:
+          type: string
+        level:
+          type: string
+        position:
+          items:
+            type: number
+          type: array
+          uniqueItems: false
+        radius:
+          type: number
+        room:
+          type: string
+        type:
+          description: fire, smoke, gas, sprinkler, water, warning
+          type: string
+      type: object
+externalDocs:
+  description: API reference and lab quickstart
+  url: https://github.com/eislab-cps/buildingsim/tree/main/docs
+info:
+  description: |-
+    Laptop-local building simulation API for the D7065E lab. Runtime state is in memory and resets when the process stops.
+    There is no authentication: the server binds to 127.0.0.1 by default and must only be exposed on a trusted network.
+    Editor endpoints exist only when the server is started with --edit.
+  license:
+    name: MIT
+    url: https://github.com/eislab-cps/buildingsim/blob/main/LICENSE
+  title: BuildSim API
+  version: "1.0"
+openapi: 3.1.0
+paths:
+  /api/actuators/{id}:
+    delete:
+      parameters:
+      - description: Actuator ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.MutationResponse'
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Not Found
+      summary: Delete an actuator
+      tags:
+      - actuators
+    get:
+      parameters:
+      - description: Actuator ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.Actuator'
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Not Found
+      summary: Get an actuator
+      tags:
+      - actuators
+  /api/actuators/{id}/state:
+    put:
+      parameters:
+      - description: Actuator ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/model.ActuatorState'
+                description: New state
+                summary: state
+        description: New state
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.MutationResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Not Found
+      summary: Set an actuator state
+      tags:
+      - actuators
+  /api/alerts:
+    get:
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/model.DecisionAlert'
+                type: array
+          description: OK
+      summary: Get decision alerts
+      tags:
+      - visualization
+    put:
+      description: Full replacement. Alerts are current operational messages, not
+        a historical log. Viewers are notified with a version counter and re-fetch
+        this snapshot.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - items:
+                  $ref: '#/components/schemas/model.DecisionAlert'
+                title: body
+                type: array
+        description: Decision alerts
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.MutationResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Bad Request
+      summary: Replace decision alerts
+      tags:
+      - visualization
+  /api/building:
+    get:
+      description: Returns the building name and its ordered list of levels.
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.Building'
+          description: OK
+      summary: Building overview
+      tags:
+      - building
+  /api/building/cross-floor-edges:
+    get:
+      description: Returns the stair and elevator edges that join per-level graphs
+        into one walkable multi-floor graph.
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/model.CrossFloorEdge'
+                type: array
+          description: OK
+      summary: Cross-floor connections
+      tags:
+      - building
+  /api/building/floors/{level}:
+    get:
+      description: Returns rooms, walls, labels, and both navigation graphs for a
+        single level.
+      parameters:
+      - description: Level ID
+        example: level0
+        in: path
+        name: level
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.FloorData'
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Not Found
+      summary: Floor plan for one level
+      tags:
+      - building
+  /api/config:
+    get:
+      description: Reports which viewer is active and whether editing endpoints exist,
+        so the browser can adapt without probing.
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ConfigResponse'
+          description: OK
+      summary: Server configuration
+      tags:
+      - config
+  /api/coverage:
+    get:
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/model.CoverageZone'
+                type: array
+          description: OK
+      summary: Get coverage zones
+      tags:
+      - coverage
+    put:
+      description: Replaces every zone. A zone centres on `room` when given, otherwise
+        on explicit `center` coordinates.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - items:
+                  $ref: '#/components/schemas/model.CoverageZone'
+                title: zones
+                type: array
+        description: Coverage zones
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.MutationResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Bad Request
+      summary: Replace coverage zones
+      tags:
+      - coverage
+  /api/doors:
+    get:
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/model.Door'
+                type: array
+          description: OK
+      summary: Get doors
+      tags:
+      - visualization
+    put:
+      description: Full replacement. A locked or blocked entry node is removed from
+        walkable routing. Viewers are notified with a version counter and re-fetch
+        this snapshot.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - items:
+                  $ref: '#/components/schemas/model.Door'
+                title: body
+                type: array
+        description: Doors
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.MutationResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Bad Request
+      summary: Replace doors
+      tags:
+      - visualization
+  /api/editor/floors/{level}:
+    post:
+      description: Available only when the server runs with --edit. Without --edit-output
+        the change affects only the running process; embedded source data is never
+        overwritten.
+      parameters:
+      - description: Level ID
+        example: level0
+        in: path
+        name: level
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/model.FloorData'
+                description: Floor plan
+                summary: floor
+        description: Floor plan
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.EditorSaveResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Not Found
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Internal Server Error
+      summary: Save an edited floor plan
+      tags:
+      - editor
+  /api/editor/notes/{building}:
+    post:
+      description: Available only when the server runs with --edit. The body must
+        be a JSON array.
+      parameters:
+      - description: Building name
+        example: abuilding
+        in: path
+        name: building
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - items:
+                  type: object
+                title: notes
+                type: array
+        description: Inspection notes
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.EditorSaveResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Bad Request
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Internal Server Error
+      summary: Save inspection notes
+      tags:
+      - editor
+  /api/effects:
+    get:
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/model.VisualEffect'
+                type: array
+          description: OK
+      summary: Get visual effects
+      tags:
+      - visualization
+    put:
+      description: Full replacement. BuildSim renders the effect; the simulator owns
+        its evolution. Viewers are notified with a version counter and re-fetch this
+        snapshot.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - items:
+                  $ref: '#/components/schemas/model.VisualEffect'
+                title: body
+                type: array
+        description: Visual effects
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.MutationResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Bad Request
+      summary: Replace visual effects
+      tags:
+      - visualization
+  /api/entities:
+    get:
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/model.MobileEntity'
+                type: array
+          description: OK
+      summary: Get mobile entities
+      tags:
+      - visualization
+    put:
+      description: Full replacement. The browser interpolates between successive positions.
+        Viewers are notified with a version counter and re-fetch this snapshot.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - items:
+                  $ref: '#/components/schemas/model.MobileEntity'
+                title: body
+                type: array
+        description: Mobile entities
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.MutationResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Bad Request
+      summary: Replace mobile entities
+      tags:
+      - visualization
+  /api/equipment:
+    get:
+      description: Returns every equipment item, narrowed by any combination of the
+        filters.
+      parameters:
+      - description: Filter by level
+        example: level0
+        in: query
+        name: level
+        schema:
+          type: string
+      - description: Filter by room name
+        example: A109
+        in: query
+        name: room
+        schema:
+          type: string
+      - description: Filter by equipment type
+        in: query
+        name: type
+        schema:
+          type: string
+      - description: Filter by category
+        in: query
+        name: category
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/model.Equipment'
+                type: array
+          description: OK
+      summary: List equipment
+      tags:
+      - equipment
+    post:
+      description: Registers one equipment item with its sensors and actuators. Bumps
+        the equipment version and notifies viewers.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/model.Equipment'
+                description: Equipment to create
+                summary: equipment
+        description: Equipment to create
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.Equipment'
+          description: Created
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Bad Request
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Conflict
+      summary: Create equipment
+      tags:
+      - equipment
+  /api/equipment/{id}:
+    delete:
+      description: Removes the item together with its sensors and actuators.
+      parameters:
+      - description: Equipment ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.MutationResponse'
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Not Found
+      summary: Delete equipment
+      tags:
+      - equipment
+    get:
+      parameters:
+      - description: Equipment ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.Equipment'
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Not Found
+      summary: Get equipment by ID
+      tags:
+      - equipment
+    put:
+      description: Replaces equipment metadata. Omitted sensor and actuator collections
+        are preserved; an explicit empty array removes them.
+      parameters:
+      - description: Equipment ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/model.Equipment'
+                description: Replacement equipment
+                summary: equipment
+        description: Replacement equipment
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.Equipment'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Not Found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Conflict
+      summary: Update equipment
+      tags:
+      - equipment
+  /api/equipment/{id}/actuators:
+    get:
+      parameters:
+      - description: Equipment ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/model.Actuator'
+                type: array
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Not Found
+      summary: List the actuators of one equipment item
+      tags:
+      - actuators
+    post:
+      parameters:
+      - description: Equipment ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/model.Actuator'
+                description: Actuator to add
+                summary: actuator
+        description: Actuator to add
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.Actuator'
+          description: Created
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Not Found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Conflict
+      summary: Add an actuator to equipment
+      tags:
+      - actuators
+  /api/equipment/{id}/sensors:
+    get:
+      parameters:
+      - description: Equipment ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/model.Sensor'
+                type: array
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Not Found
+      summary: List the sensors of one equipment item
+      tags:
+      - sensors
+    post:
+      parameters:
+      - description: Equipment ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/model.Sensor'
+                description: Sensor to add
+                summary: sensor
+        description: Sensor to add
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.Sensor'
+          description: Created
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Not Found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Conflict
+      summary: Add a sensor to equipment
+      tags:
+      - sensors
+  /api/equipment/bulk:
+    post:
+      description: Creates many items in one request. Items whose ID already exists
+        are skipped rather than rejected, so the call is safe to repeat. Returns 201
+        when at least one item was created and 200 when every item was skipped.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - items:
+                  $ref: '#/components/schemas/model.Equipment'
+                title: equipment
+                type: array
+        description: Equipment to create
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.BulkResult'
+          description: Every item already existed
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.BulkResult'
+          description: At least one item created
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Bad Request
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Conflict
+      summary: Create equipment in bulk
+      tags:
+      - equipment
+  /api/equipment/notify:
+    post:
+      description: Bumps the equipment version and notifies viewers without changing
+        state. Normal mutations do this automatically, so this endpoint is rarely
+        needed.
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.VersionResponse'
+          description: OK
+      summary: Force an equipment notification
+      tags:
+      - equipment
+  /api/graph:
+    get:
+      description: Returns the room adjacency graph, or the finer walkable graph when
+        type=walkable.
+      parameters:
+      - description: Level ID
+        in: query
+        name: level
+        schema:
+          default: level0
+          type: string
+      - description: Graph variant
+        in: query
+        name: type
+        schema:
+          default: adjacency
+          enum:
+          - adjacency
+          - walkable
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.NavGraph'
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Not Found
+      summary: Navigation graph for one level
+      tags:
+      - graph
+  /api/graph/route:
+    get:
+      description: Runs Dijkstra over the selected graph. Give numeric from/to room
+        IDs, or from_name/to_name. Names with type=walkable and no level route across
+        floors, and locked doors are excluded from walkable routes.
+      parameters:
+      - description: Level ID; omit with names and type=walkable to route across floors
+        in: query
+        name: level
+        schema:
+          type: string
+      - description: Graph variant
+        in: query
+        name: type
+        schema:
+          default: adjacency
+          enum:
+          - adjacency
+          - walkable
+          type: string
+      - description: Origin room ID
+        in: query
+        name: from
+        schema:
+          type: integer
+      - description: Destination room ID
+        in: query
+        name: to
+        schema:
+          type: integer
+      - description: Origin room name
+        example: A109
+        in: query
+        name: from_name
+        schema:
+          type: string
+      - description: Destination room name
+        example: A2306
+        in: query
+        name: to_name
+        schema:
+          type: string
+      - description: Level of from_name, when the name is ambiguous
+        in: query
+        name: from_level
+        schema:
+          type: string
+      - description: Level of to_name, when the name is ambiguous
+        in: query
+        name: to_level
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.RouteResult'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Not Found
+      summary: Shortest path between two rooms
+      tags:
+      - graph
+  /api/icons/{name}:
+    get:
+      description: Serves an embedded SVG icon by file name. The name must be a bare
+        file name ending in `.svg`.
+      parameters:
+      - description: Icon file name, including the .svg suffix
+        example: sensor-temperature.svg
+        in: path
+        name: name
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            image/svg+xml:
+              schema:
+                type: string
+          description: SVG document
+        "400":
+          content:
+            image/svg+xml:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Bad Request
+        "404":
+          content:
+            image/svg+xml:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Not Found
+      summary: Fetch an equipment icon
+      tags:
+      - icons
+  /api/occupancy:
+    get:
+      description: Returns the global occupancy map keyed by canonical `<level>/<room-name>`.
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  $ref: '#/components/schemas/model.RoomOccupancy'
+                type: object
+          description: OK
+      summary: Get building occupancy
+      tags:
+      - occupancy
+    put:
+      description: Replaces the whole occupancy map. Keys may be `<level>/<room-name>`,
+        or a bare room name when it is unique across the building.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - additionalProperties:
+                  $ref: '#/components/schemas/model.RoomOccupancy'
+                title: occupancy
+                type: object
+        description: Occupancy by room key
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.MutationResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Bad Request
+      summary: Replace building occupancy
+      tags:
+      - occupancy
+  /api/openapi.json:
+    get:
+      description: Returns the OpenAPI 3.1 document describing every endpoint below,
+        for use with API clients and code generators.
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+          description: OpenAPI 3.1 document
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Service Unavailable
+      summary: OpenAPI description of this API
+      tags:
+      - config
+  /api/room-appearance:
+    get:
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/model.RoomAppearance'
+                type: array
+          description: OK
+      summary: Get room appearance
+      tags:
+      - visualization
+    put:
+      description: Full replacement. Controls room illumination independently of any
+        numeric layer. Viewers are notified with a version counter and re-fetch this
+        snapshot.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - items:
+                  $ref: '#/components/schemas/model.RoomAppearance'
+                title: body
+                type: array
+        description: Room appearance
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.MutationResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Bad Request
+      summary: Replace room appearance
+      tags:
+      - visualization
+  /api/room-layers:
+    get:
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/model.RoomLayer'
+                type: array
+          description: OK
+      summary: Get room layers
+      tags:
+      - visualization
+    put:
+      description: Full replacement. A layer is a scalar field keyed by canonical
+        room key. Viewers are notified with a version counter and re-fetch this snapshot.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - items:
+                  $ref: '#/components/schemas/model.RoomLayer'
+                title: body
+                type: array
+        description: Room layers
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.MutationResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Bad Request
+      summary: Replace room layers
+      tags:
+      - visualization
+  /api/sensors/{id}:
+    delete:
+      parameters:
+      - description: Sensor ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.MutationResponse'
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Not Found
+      summary: Delete a sensor
+      tags:
+      - sensors
+    get:
+      parameters:
+      - description: Sensor ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.Sensor'
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Not Found
+      summary: Get a sensor
+      tags:
+      - sensors
+  /api/sensors/{id}/value:
+    put:
+      description: Publishes a reading. A binary sensor sets binary_value, a text
+        sensor sets value; data_type selects which.
+      parameters:
+      - description: Sensor ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/model.SensorValue'
+                description: New reading
+                summary: value
+        description: New reading
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.MutationResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Not Found
+      summary: Set a sensor value
+      tags:
+      - sensors
+  /api/sessions:
+    get:
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/model.Session'
+                type: array
+          description: OK
+      summary: List viewer sessions
+      tags:
+      - sessions
+    post:
+      description: Allocates a session ID. Connect a WebSocket to /ws/{id} to receive
+        its updates.
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.Session'
+          description: Created
+      summary: Create a viewer session
+      tags:
+      - sessions
+  /api/sessions/{id}:
+    delete:
+      parameters:
+      - description: Session ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.StatusResponse'
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Not Found
+      summary: Delete a session
+      tags:
+      - sessions
+    get:
+      parameters:
+      - description: Session ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.Session'
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Not Found
+      summary: Get a session
+      tags:
+      - sessions
+  /api/sessions/{id}/coverage:
+    put:
+      description: Replaces the coverage overlay for one viewer, leaving the global
+        zones untouched.
+      parameters:
+      - description: Session ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - items:
+                  $ref: '#/components/schemas/model.CoverageZone'
+                title: coverage
+                type: array
+        description: Coverage zones
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.MutationResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Not Found
+      summary: Set session coverage zones
+      tags:
+      - sessions
+  /api/sessions/{id}/highlights:
+    put:
+      description: Replaces the highlighted rooms for one viewer. Omitted opacity
+        defaults to 0.8.
+      parameters:
+      - description: Session ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - items:
+                  $ref: '#/components/schemas/model.RoomHighlightRequest'
+                title: highlights
+                type: array
+        description: Highlights
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.MutationResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Not Found
+      summary: Set session room highlights
+      tags:
+      - sessions
+  /api/sessions/{id}/occupancy:
+    put:
+      description: Replaces the occupancy overlay for one viewer, leaving the global
+        map untouched.
+      parameters:
+      - description: Session ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - additionalProperties:
+                  $ref: '#/components/schemas/model.RoomOccupancy'
+                title: occupancy
+                type: object
+        description: Occupancy by room key
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.MutationResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Not Found
+      summary: Set session occupancy
+      tags:
+      - sessions
+  /api/sessions/{id}/route:
+    put:
+      description: Draws a path in one viewer. Usually the body is a result from /api/graph/route.
+      parameters:
+      - description: Session ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/model.RouteResult'
+                description: Route to display
+                summary: route
+        description: Route to display
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.MutationResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Not Found
+      summary: Show a route in a session
+      tags:
+      - sessions
+  /api/sessions/{id}/viewport:
+    put:
+      description: 'Moves one viewer: which room is centred, the zoom, and 2D or 3D
+        mode.'
+      parameters:
+      - description: Session ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/model.Viewport'
+                description: Viewport
+                summary: viewport
+        description: Viewport
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.MutationResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Not Found
+      summary: Set the session viewport
+      tags:
+      - sessions
+  /healthz:
+    get:
+      description: Reports that the process is up. Used by the container health check
+        and by `buildsim health`.
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.StatusResponse'
+          description: OK
+      summary: Liveness probe
+      tags:
+      - health
+  /ws/{id}:
+    get:
+      description: Upgrades to a WebSocket carrying small typed notifications with
+        a version counter. Clients re-fetch the matching REST snapshot rather than
+        trusting the message body. Origins are restricted to the same origin, with
+        a loopback-to-loopback allowance.
+      parameters:
+      - description: Session ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "101":
+          content:
+            application/json:
+              schema:
+                type: string
+          description: Switching Protocols
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.ErrorResponse'
+          description: Not Found
+      summary: Subscribe to session updates
+      tags:
+      - sessions
+servers:
+- url: 127.0.0.1:9090/

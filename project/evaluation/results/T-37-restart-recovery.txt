@@ -1,0 +1,98 @@
+T-37 service state across a container restart
+Demo profile at TIME_SCALE 60, REAL_EPOCH=2026-10-10T22:31:16Z, START_AT 2026-10-09T07:45:00Z,
+FAULT_SPEC default (STUCK_DAMPER:A115:0.15:T+5400). Ten containers.
+Raw transcript of the live run behind ADR-0012 and the claim in section 9 that latched diagnoses
+and open cases survive a restart. The unit tests prove the round trip against a filesystem; this
+is the only record of it happening in a deployed container.
+
+# 0. Wiring, read out of the running containers rather than out of the compose file
+fault-monitor SERVICE_STATE_PATH=/state/state.json
+supervisor    SERVICE_STATE_PATH=/state/state.json
+fault-monitor /state  -> project/storage/fault-monitor  (bind mount, .gitkeep only at start)
+supervisor    /state  -> project/storage/supervisor      (bind mount, .gitkeep only at start)
+
+fault-monitor startup line, 22:31:19:
+  fault-monitor watching 6 zones, k=30 ppm, h=150 ppm, lower arm GUARDED, cycle 60s of simulated
+  time, stale after 180s, simulated now 2026-10-09T07:48:12Z, journal timescaledb,
+  latched diagnoses survive, on /state/state.json a restart
+
+# 1. A document appears before anything has latched
+~5 s after start, project/storage/fault-monitor/state.json, 156 bytes:
+  cases                []
+  believedFanSpeed     0.7
+  believedPositions    all six zones at 0.15
+  unresponsiveDampers  []
+The empty-case document is written on the ordinary cycle, not only when something is wrong. That
+is deliberate: the believed positions and the believed fan speed are state whether or not a fault
+is open, and they are the belief AhuFlowModel.java:147-155 says a restart would otherwise reset to
+nominal and keep wrong for hours.
+
+# 2. The fault latches, ~120 s after the epoch (simulated 10:09)
+project/storage/fault-monitor/state.json, 4636 bytes:
+  case id          779b28fb-78f4-43a7-9fe0-db4dd787bbeb
+  zone             A115
+  state            COMPENSATING
+  classification   STUCK_DAMPER
+  confirmedAt      2026-10-09T10:09:00.798175500Z
+  openedAt         2026-10-09T10:07:00.416095440Z
+  evidence         11 observations, each with supportsFault and its own instant, including
+                   "belief: this damper is no longer believed to be where it is commanded. The
+                   model held it at 0.66 on the strength of the command; the last position its
+                   response agreed with, and its own CO2, put it at 0.15 ... The belief is pinned
+                   at 0.15 until service."
+  unresponsiveDampers  ["A115"]
+  believedPositions    A115 = 0.15   (the pin, which exists nowhere in the journal but as prose)
+
+project/storage/supervisor/state.json, 1638 bytes:
+  cases    [779b28fb-78f4-43a7-9fe0-db4dd787bbeb, STUCK_DAMPER, A115]
+           frozenZone A115: volume 132.0 m3, floor 44.0 m2, authority 85.4,
+           minimumPosition 0.15, commandedPosition 0.5503500000000002
+  baseline 6 zones
+  probes   ["A115"]
+
+The two services agree on the case id without ever having exchanged it as state. Each derived it
+from the same FaultStateChanged on the wire, which is the cross-check worth noticing: the
+documents are two independent recordings of one episode, not one document copied.
+
+# 3. The kill, which is a SIGKILL and not a graceful stop
+docker kill ventilation-fault-detection-fault-monitor-1
+docker compose ... start fault-monitor
+  StartedAt   2026-10-10T22:34:01.567708713Z
+  RestartCount 0
+
+RestartCount is 0 for the same reason T-27 records: a kill issued through the daemon is a manual
+stop, so the restart policy is not what brought it back. That is the point here — nothing about
+this result depends on the restart policy, only on what was on the volume.
+
+# 4. After the restart
+fault-monitor startup line, 22:34:02, simulated 2026-10-09T10:31:19Z:
+  ... latched diagnoses survive, on /state/state.json a restart
+
+project/storage/fault-monitor/state.json, after the restart and several further cycles:
+  case id        779b28fb-78f4-43a7-9fe0-db4dd787bbeb   (UNCHANGED)
+  state          COMPENSATING
+  classification STUCK_DAMPER
+  confirmedAt    2026-10-09T10:09:00.798175500Z          (UNCHANGED)
+  updatedAt      2026-10-09T11:02:00.391167840Z          (ADVANCING)
+  unresponsiveDampers ["A115"], believedPositions A115 = 0.15
+
+That combination is what makes this conclusive rather than suggestive. A monitor that had started
+cold would have re-detected the fault from scratch and produced a NEW case id and a NEW
+confirmedAt, because both are minted at confirmation; it would also have had to pass back through
+WARMUP and SUSPECT first. The id and the confirmation instant are identical across the kill while
+updatedAt keeps moving, so the case that is running after the restart is the same object that was
+running before it, still live.
+
+# 5. Atomic write
+No .pending file in either directory at any point after a write completed. The document is written
+to <name>.pending in the same directory and renamed over the target with ATOMIC_MOVE, so a process
+that dies mid-write leaves the previous whole document rather than a truncated one.
+
+# 6. What this run does NOT show
+- The supervisor was not itself killed in this run. Its document was verified present and correct
+  across the monitor's restart; its own recovery path is covered by its unit tests.
+- The journal on this host carries rows from earlier demo runs at the same START_AT, so simulated
+  timestamps in `decisions` are not unique to one run. Every assertion above is read from the
+  state documents and the container metadata instead, which are per-run.
+- A cold start was not forced by deleting the document, so the "missing document means cold start"
+  path is covered by unit tests only.

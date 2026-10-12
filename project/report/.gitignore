@@ -1,0 +1,8 @@
+*.aux
+*.log
+*.out
+*.toc
+*.fls
+*.fdb_latexmk
+# Figures are generated from ../diagrams/*.svg by `make figures`.
+figures/*.pdf

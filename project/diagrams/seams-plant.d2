@@ -1,0 +1,50 @@
+# P1, P2 and P3 — the three ports that cross into BuildSim — and N2, the boundary between the
+# simulator and the plant, which is not a seam. Drawn together because they are the same
+# physical boundary seen three ways, and because N2 is what stops P1 from being read as "the
+# place a real building plugs in, free of charge".
+#
+# P1 TIER 2: the dependency points inward cleanly, but one interface covers the whole building
+# surface, the swap is five composition-root edits, and BuildSim cannot be configured off for
+# the three device processes. P2 TIER 1: three implementations already in the tree, selected by
+# whether BUILDSIM_URL is set. P3 TIER 1, and the least interesting seam in the set.
+#
+# N2: BuildSim IS the plant of record and the simulator is what makes its CO2 move, so there is
+# nothing between them to cut. Cutting K1 leaves the simulator three of its four jobs; a real
+# ROOM retires BuildSim and the simulator together, and then P1 is the only line left standing.
+# Argued in seams.md § P1-P3 and § N2.
+#
+# VERIFIED AGAINST: BuildingStatePort.java:14 with :9-13; BuildingOverlayPort.java:12;
+# OccupancyPort.java:7; BuildSimAdapter.java:32, :105, :122-170, :138-150, :250-264;
+# SkippedWorkOrders.java:13; RecordingOverlay.java:11; the five roots physics Main.java:66,
+# Co2SensorMain.java:50, DamperActuatorMain.java:46, DashboardRuntime.java:170,
+# SupervisorConfiguration.java:65; the health-wait loops Co2SensorMain.java:39, :80-86;
+# BuildSimStateAdapter.exchange:34-48 with :16-18 and :46; RoomLayerPublisher.java:47.
+direction: right
+
+classes: {
+  contract: { shape: hexagon; style.stroke-width: 2 }
+  port: { shape: parallelogram; style.stroke-width: 2 }
+  t1: { style.stroke: "#1e8449"; style.fill: "#eafaf1" }
+  t2: { style.stroke: "#b9770e"; style.fill: "#fdf3e3" }
+  t3: { style.stroke: "#c0392b"; style.fill: "#fdedec"; style.stroke-dash: 4 }
+  box: { style.stroke-width: 2 }
+  doc: { shape: document; style.fill: transparent }
+}
+
+devs: "physics-simulator · co2-sensor\ndamper-actuator" { class: box }
+ops: "supervisor · dashboard" { class: box }
+p1: "P1 · BuildingStatePort" { class: [port; t2] }
+p2: "P2 · BuildingOverlayPort" { class: [port; t1] }
+p3: "P3 · OccupancyPort" { class: [port; t1] }
+bs: "BuildSim\nthe plant of record" { class: box }
+n2: "N2 · simulator vs plant\nTIER 3 — not a seam" { class: t3 }
+md: "the conditions · evidence\nseams.md § P1-P3, § N2" { class: doc }
+
+devs -> p1: "building state"
+devs -> p3: "head count"
+ops -> p2: "the operator's view"
+p1 -> bs
+p2 -> bs
+p3 -> bs
+bs -> n2
+n2 -> md

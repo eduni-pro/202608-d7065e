@@ -1,0 +1,66 @@
+\section{The compensation algebra, and the second lever}\label{sec:E}
+
+\subsection{The closed form \texorpdfstring{\texorpdfstring{\S\ref{sec:7.4}}{7.4}}{7.4} states}\label{sec:E.1}
+
+Write $a_i = p_i A_i$ for each opening, $f$ for the frozen room's opening, $h$ for the sum of the
+healthy openings at the baseline, $A_0 = h + f$ for the total, and $s_0$ for the baseline fan
+speed. Now trim \textbf{every healthy damper by one common factor} $t \in (0,1]$ and raise the fan
+to $s$. The frozen damper does not move, so the total opening becomes $A(t) = t\,h + f$ and
+
+\[
+Q_i(t,s) = Q_\text{nom}\,s\,(1-\beta)\,\frac{t\,a_i}{A(t)}
+\quad\Longrightarrow\quad
+\underbrace{\frac{Q_i(t,s)}{Q_i(1,s_0)}}_{\text{healthy ratio } r}
+= \frac{s}{s_0}\cdot\frac{t\,A_0}{A(t)},
+\qquad
+\underbrace{\frac{Q_f(t,s)}{Q_f(1,s_0)}}_{\text{faulted ratio } \gamma}
+= \frac{s}{s_0}\cdot\frac{A_0}{A(t)}
+= \frac{r}{t}.
+\]
+
+Two facts fall straight out, and together they are the whole mechanism.
+
+\textbf{First: one fan speed holds every healthy room's flow at once.} The healthy ratio $r$
+contains no room index. Because the trim is \emph{common} and the split is \emph{proportional},
+every healthy room's share of the total opening changes by the same factor, so a single scalar
+makes $r = 1$ for all five simultaneously:
+
+\[ \boxed{\;s = s_0\,\frac{A(t)}{t\,A_0}\;} \]
+
+There is nothing per-room to balance and no iteration, which is why the supervisor publishes one
+fan-speed command and five identical trims rather than solving a five-dimensional problem.
+
+\textbf{Second: at that speed the frozen room's flow is multiplied by exactly $1/t$.} Substituting
+$r = 1$ into $\gamma = r/t$ gives $\gamma = 1/t$. \textbf{The trim \emph{is} the gain.} Trim the
+healthy dampers to a quarter and the starved room gets four times the air, with the other five
+rooms' airflow bit-for-bit unchanged.
+
+
+\subsection{Spending fan speed when there is no trim to make}\label{sec:E.2}
+
+\S\ref{sec:7.4} states that the fan is the second lever and that it is not selective. This is that
+derivation in full, with the bound it runs into.
+
+\textbf{The second lever, and why the trim alone was not enough.} The derivation above assumes
+there is a trim to make. There is not always: with \emph{every} healthy damper already sitting on
+its 0.15 floor the trim floor is $t = 1$, the proportional split cannot be shifted at all, and the
+closed form above returns the plant unchanged. That is not a corner case in this building: in the
+regime R-2's drawn weekday covers, the healthy rooms are below the inner loop's 800 ppm opening
+threshold when a plan is solved, so they \emph{are} on their floor, and the measured consequence was
+a supervisory loop worth nothing and, at design occupancy, less than nothing (§\ref{sec:11.2}). The split law
+gives a second lever: $Q_i$ is linear in $s$, so putting $t = 1$ into the two ratios gives
+$A(1) = A_0$ and
+
+\[ r = \gamma = s/s_0, \]
+
+which is to say the frozen room's gain and the healthy rooms' \emph{over}-supply become one and the
+same number. The fan lever is therefore \textbf{not selective}: the 43 \% of headroom above
+$s_0 = 0.7$ is spendable selectively only \emph{through} a trim, and with no trim in force the
+solver may spend it only as far as the healthy rooms tolerate being over-ventilated, the same
+\texttt{HEALTHY\_FLOW\_TOLERANCE} = 0.05, read in the other direction. So
+$s = \min(1.0,\ (1+\text{tol})\,s(t),\ \gamma_\text{wanted}\,t\,s(t))$, each term a multiple of
+the preserving speed because every ratio here is linear in $s$, and a request the trim alone covers
+still lands on $s(t)$ exactly. The plant's ceiling binds only where there is no healthy room left to
+over-supply, which is what ``every zone is faulted'' means in a plan's limitation text. The raise is
+not free and the work order prices it: fan power goes as $s^3$, so 0.70 to 1.00 costs 2.92 times the
+fan power, and the plan states that multiple rather than implying it.

@@ -1,0 +1,150 @@
+\section{Simulating the sensor values (the physical model)}\label{sec:6}
+
+BuildSim provides the rooms and no physics, so the air, the people and the plant are all
+simulated. The aim is not physical perfection but enough structure (distinct time constants,
+daily cycles, genuine responses to actuation) that the controller reacts to meaningful data and
+the observer has something real to be wrong about.
+
+\textbf{Every parameter in this section is invented rather than measured, and each is derived from
+a stated rule rather than picked.} That distinction matters and is the reason ADR-0008 lists the
+derivations: it is what lets Section \ref{sec:13} say precisely which claims the invention invalidates
+(the detection-performance numbers) and which it does not (the architectural properties).
+
+\subsection{The six rooms}\label{sec:6.1}
+
+The six rooms are the cluster on corridor A120 of level 0, taken from BuildSim's own
+\texttt{level0/\allowbreak floorplan\_data.json}. Every one has a
+room → entry → corridor path in BuildSim's walkable graph ending at corridor node \texttt{A120}
+and at no other corridor, and the six lie within 59 m of one another along it. Volume is floor area
+× an assumed \textbf{3 m ceiling}; the floorplan carries no height. Design flow is the Swedish
+workplace guideline, \textbf{7 l/s per person plus 0.35 l/s per m²}, at the room's intended
+occupancy.
+
+\textbf{Appendix \ref{sec:C.1}} tabulates all six: area, volume, intended use and schedule, design
+occupancy and design flow, with the \textbf{Σ} row the plant is sized from.
+
+Five distinct sizes spanning 18–76.5 m², a 4:1 span in volume, so no two rooms share a time
+constant $V/Q$ or a schedule. That matters because R-7's ``unchanged'' is measured against those
+differences: the rejected alternative room set (the corridor A170 cluster) had better wall
+adjacency but eight of its ten rooms were 69–79 m², and six same-size rooms would pass R-7 more
+easily and mean less.
+
+\subsection{The shared air handler, the flow split and the fan laws}\label{sec:6.2}
+
+The rooms do not each get a fan. One air-handling unit \texttt{AHU-A120} serves all six, with one
+damper per room. Its flow and power are
+
+\[ Q_\text{fan} = Q_\text{nom}\,s\,(1-\beta), \qquad P = P_\text{nom}\,s^3\,(1+\beta), \]
+
+with speed $s \in [0.2, 1.0]$ and filter blockage $\beta$. The cube in the speed is the fan
+affinity law; $\beta$ enters the two with \emph{opposite} signs, which is the whole point: a
+blocked filter costs more power for less air, and that asymmetry is what the classifier tests. The
+flow is split over the six damper openings in proportion:
+
+\[ Q_i = Q_\text{fan}\,\frac{a_i}{\sum_j a_j}, \qquad a_i = p_i\,A_i, \]
+
+where $p_i$ is the commanded damper position and $A_i$ the damper's authority, taken proportional
+to that room's design flow. This is the simplest law under which the dampers genuinely interact,
+and the interaction is not incidental: it is the mechanism of Section \ref{sec:7.4}.
+
+Every one of those parameters is invented rather than measured, and each is derived from a stated
+rule rather than picked. \textbf{Appendix \ref{sec:C}} gives the full table (parameter, value, derivation,
+and the requirement each is first-order on), and §\ref{sec:13.3} says which claims the invention invalidates
+and which it does not.
+
+The consequence of the authority rule is worth stating on its own, because it is the design: at
+$s=1$ with every damper open each room receives 143 \% of its design flow (the 43 \% of
+headroom the table above reserves for compensation), and \emph{no room can take more than its share
+of a fixed total}, so \textbf{the only way a room gets more air is if another damper closes.} That is simultaneously what
+makes compensation possible and what makes R-7 non-trivial.
+
+\subsection{The air: a well-mixed CO₂ balance per room}\label{sec:6.3}
+
+Each room is one well-mixed volume:
+
+\[ V_i\,\frac{dC_i}{dt} = n_i\,g\cdot 10^{6} - Q_i\,(C_i - C_\text{out}), \]
+
+integrated with forward Euler at a 1 s tick. The $10^{6}$ converts a volumetric generation rate
+into the ppm the concentration is measured in: $V$ is m³, $Q$ and $g$ are m³/s, so without it the
+production term is a volume fraction while the dilution term is ppm and the two cannot be added.
+It is also the factor that makes the sizing come out right: 165.9 l/s holds A145 at roughly
+1000 ppm with its 20 design occupants, so the ventilation guideline and the comfort limit agree
+about that room, which is the coincidence the fan sizing leans on. There is \textbf{no inter-room
+air exchange} and no corridor volume: that was option C's consequence and option C was rejected.
+
+Actuator commands feed back into this equation \emph{through BuildSim}: when the controller opens
+a damper, $a_i$ rises, the split gives that room more of $Q_\text{fan}$, $Q_i$ rises, CO₂ falls,
+and the next reading reflects it. That is the sense–compute–act loop made concrete.
+
+\subsection{The people}\label{sec:6.4}
+
+Occupancy drives everything else, so it is modelled explicitly as a weekday schedule per room
+type: arrivals spread over 07:30–09:00, departures over 16:00–18:00, lunch dips of 30–60 min,
+booked meetings (a 0.35 probability per hour for the meeting room, 0.3 per two-hour slot for the
+seminar room), 5–8 of 8 desks occupied in the open-plan office, and empty nights and weekends,
+with randomness seeded so that no two days are alike but every run is reproducible.
+
+Empty nights do double duty: they are the \textbf{reference condition for the sensor}. With nobody
+in the building, CO₂ \emph{must} decay to the outdoor level, so a floor that is wrong overnight is
+evidence of a drifting sensor and of nothing else. That is the third of the classifier's
+signatures, and it exists because the schedule has nights in it.
+
+\subsection{The faults}\label{sec:6.5}
+
+Four faults, injected \textbf{between the command and its physical effect}, so that the command
+record and the physics disagree, which is what gives the monitor something to detect. Four
+\emph{mechanisms} against the monitor's three \emph{classifications}: the last two are two ways for
+a sensor to be wrong, and the monitor has one word for both of them (§\ref{sec:7.3}).
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.19}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.13}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.30}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.38}}@{}}
+\toprule
+\textbf{Fault} & \textbf{Scope} & \textbf{What it does to the physics} & \textbf{Signature it is
+meant to leave} \\
+\midrule
+\endhead
+\texttt{STUCK\_DAMPER} & one room & The vane ignores the command and holds its magnitude position
+& One residual rises; plant fan power flat\\*
+\texttt{BLOCKED\_FILTER} & plant-wide & Scales $Q_\text{fan}$ by $(1-\beta)$ and power by
+$(1+\beta)$ & All six residuals rise together; power per unit of flow rises\\*
+\texttt{SENSOR\_DRIFT} & one room & Adds a linear, \emph{uncapped} ramp in ppm per hour at the
+\emph{sensor}, not in the room & Step-response shape right, overnight floor wrong\\*
+\texttt{SENSOR\_OFFSET} & one room & Adds a \emph{fixed} offset in ppm at the sensor from its onset
+and holds it there: a recalibration against the wrong reference, or a replacement element
+installed without one & The same signature in principle; in practice it confirms within minutes,
+long before the overnight floor it would need (§\ref{sec:7.3}) \\
+\bottomrule
+\end{longtable}
+
+The magnitude means something different for each kind, and the records enforce the range: a frozen
+damper position in $[0,1]$; a blockage $\beta$ in the open interval $(0,1)$; a drift rate in ppm per
+hour that must be non-zero \emph{and may be negative}; and an offset in ppm under the same rule.
+That last permission matters and Section \ref{sec:13.1} returns to it: a negative drift is a fault the
+generator can produce and the deployed guarded lower arm does see, because a room reading below
+the 420 ppm outdoor concentration betrays itself. The two sensor faults are separate
+kinds rather than one parameterised kind because their magnitudes carry different \emph{units} (ppm
+per hour against ppm) and one kind holding both would need a fifth field in the spec grammar
+below, breaking every scenario already written. Sensor errors on one sensor accumulate; two stuck
+positions do not, the last declared one wins.
+
+Faults are declared as \texttt{KIND:TARGET:MAGNITUDE:ONSET}, several separated by \texttt{;} or
+newlines, with \texttt{\#} comments ignored, passed to the simulator through \texttt{FAULT\_SPEC}
+or \texttt{FAULT\_SPEC\_FILE} so a demo scenario needs no file edit:
+
+\begin{footnotesize}
+\begin{verbatim}
+STUCK_DAMPER:A115:0.15:T+1800         # vane frozen at the 0.15 floor, 30 min into the run
+BLOCKED_FILTER:PLANT:0.4:T+7200       # beta = 0.4; PLANT, because the filter is shared
+SENSOR_DRIFT:A124:150:2026-10-05T09:00:00Z   # +150 ppm per hour from that instant
+\end{verbatim}
+\end{footnotesize}
+
+The ground truth of which faults are active is carried on every simulator snapshot alongside
+\emph{both} the true and the measured concentration, so an experiment can always compare what the
+detector concluded against what was injected. Sensor noise is Gaussian at
+$\sigma = 30$ ppm from a random stream separate from the occupancy schedules, so noise and people
+can be varied independently, and that 30 ppm is the same number the CUSUM's $k$ and $h$ are tuned
+to, which is why it is not a free parameter.

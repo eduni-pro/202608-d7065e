@@ -1,0 +1,74 @@
+# T-31 — the same stuck-damper scenario as dynamic.d2, in time. Room A115, the meeting room
+# (132 m3, 10 seats), damper frozen at minimumDamperPosition = 0.15 (ADR-0008, T-14).
+# The periods are the groups: the inner loop at ~1 s (ControlSettings.DEFAULT_
+# SAMPLE_INTERVAL), the outer loop at ~60 s (plan §2). damper-actuator has no lifeline here;
+# it applies every command on the broker to BuildSim, as the note on mosquitto says.
+# Confirmation is not one cycle: a case opens as SUSPECT when S passes 0.6 h, and the statistic
+# must then hold above h for confirmPersistenceCycles = 2 consecutive cycles before the
+# classifier runs. Three outer cycles from first suspicion to the fault event.
+shape: sequence_diagram
+
+sim: "physics-simulator\n[Container: Java 25]"
+bs: "BuildSim\n[Software System]"
+sensor: "co2-sensor\n[Container: Java 25]"
+broker: "mosquitto\n[MQTT]"
+ctrl: "dcv-controller\n[Container: Quarkus]"
+mon: "fault-monitor\n[Container: Quarkus]"
+sup: "supervisor\n[Container: Quarkus]"
+
+sim.n0: "A115 booked 09:00-10:00, 10 people.\nFault injected: the vane is frozen at 0.15."
+broker.n0: "damper-actuator, not drawn, applies every\ncommand published here to BuildSim [REST]."
+
+inner: "inner loop — every 1 s — the room fills and the controller opens the damper" {
+  sim -> bs: "1: write A115 co2 = 870 ppm [REST]"
+  bs -> sensor: "2: read six CO2 values, AHU fan power [REST]"
+  sensor -> broker: "3: readings/A115/co2 {870 ppm, GOOD} [MQTT]"
+  broker -> ctrl: "4: readings/A115/co2"
+  ctrl -> broker: "5: commands/A115/damper {0.45, cmd-12}\n870 ppm is above openAbove = 800"
+  broker -> bs: "6: damper-actuator sets A115-damper = 0.45 [REST]"
+  bs -> sim: "7: actuator state — vane still 0.15, Q_A115 unchanged [REST]"
+  sim -> bs: "8: the room keeps filling; A115 co2 = 1020 ppm, past the\n1000 ppm comfort limit R-2 is written against [REST]"
+  sensor -> broker: "9: readings/A115/co2 {1020 ppm, GOOD} [MQTT]"
+  broker -> ctrl: "10: readings/A115/co2"
+  ctrl -> broker: "11: commands/A115/damper {1.00, cmd-31}\nat the comfort limit the ramp is fully open"
+}
+
+outer: "outer loop — every 60 s — suspicion, then two cycles above h, then the supervisor responds" {
+  broker -> mon: "12: readings/A115/co2, the same commands/A115/damper (cmd-31),\nreadings/AHU-A120/fan-power {137 W, s = 0.70}"
+  mon.n1: "Cycle 1 — suspicion only.\nThe residual is keyed to one command: for cmd-31 the\nobserver predicts the fall that opening 0.15 -> 1.00\nowes us. The published r = measured - predicted; the\nCUSUM accumulates measured - ceiling, which coincides\nwith it in a room at design occupancy — the case\ndrawn here. S = max(0, S + r - 30).\nS passes the suspicion threshold 0.6 h = 90 ppm, so a case\nopens as SUSPECT. SUSPECT publishes no fault and costs\nonly a frozen generation estimate; the persistence count\nstarts here at zero (ZoneMonitor.suspectIfElevated)."
+  mon -> broker: "13: residuals/A115 {r = 190 ppm, S = 175, commandId cmd-31}\nstate SUSPECT — no fault event yet"
+  broker -> mon: "14: cycle 2, 60 s later: readings/A115/co2, fan power"
+  mon -> broker: "15: residuals/A115 {r = 240 ppm, S = 385} — S is above\nh = 150 ppm, which is 1 of the 2 cycles required"
+  broker -> mon: "16: cycle 3, 60 s later: readings/A115/co2, fan power"
+  mon.n2: "confirmPersistenceCycles = 2 — and this is cycle 2 of 2.\nOnly now does the classifier run. Persistence, not a higher h,\nis this project's answer to R-3's thin margin — the spike's worst\nhealthy seed peaked at 149.1 ppm against h = 150. A single noise\ntail that crosses h is gone on the next sample, because the CUSUM\nsubtracts k from every one; a stuck damper's residual grows and\nclears h on every cycle from the first. It costs one of R-1's\nfifteen minutes, where raising h to 8 sigma would cost more\n(ZoneMonitor.confirmOrClear, MonitorParameters §R-3's margin)."
+  mon -> broker: "17: residuals/A115 {r = 265 ppm, S = 620} — still above h"
+  mon -> mon: "18: classify — fan power flat at 137 W (s unchanged), the other\nfive residuals quiet, overnight decay to 420 ppm correct"
+  mon -> broker: "19: faults/A115 {CONFIRMED, STUCK_DAMPER, evidence, case-3}\nevidence: the CUSUM stayed above h for 2 consecutive cycles"
+  broker -> sup: "20: faults/A115"
+  sup -> broker: "21: strategy/A115 {DEGRADED, case-3} — the inner loop\nstops commanding A115"
+  sup -> broker: "22: strategy/{A125A, A125, A116A, A124, A145}\n{COMPENSATING, trim} — the five healthy dampers"
+  sup -> broker: "23: commands/AHU-A120/fan-speed {s = 0.70 -> 1.00, case-3}"
+  sup -> bs: "24: work order as an alert: A115 damper stuck at 0.15 [REST]"
+  broker -> bs: "25: damper-actuator sets the five trims and the fan speed [REST]"
+}
+
+latch: "after compensation — further 60 s cycles — the CO2 curve recovers and the case does not" {
+  bs -> sim: "26: fan at s = 1.00 and five trimmed dampers; the split\nQ_i = Q_fan · a_i / Σ a_j pushes flow into A115 [REST]"
+  sim -> bs: "27: A115 co2 falls back to 780 ppm — R-2's comfort\nclaim holds while the damper is still stuck [REST]"
+  sensor -> broker: "28: readings/A115/co2 {780 ppm, GOOD} [MQTT]"
+  broker -> mon: "29: readings/A115/co2, fan power"
+  mon -> broker: "30: residuals/A115 {r = 20 ppm, S = 0, commandId cmd-31}\nthe residual has collapsed"
+  mon.n3: "THE POINT OF THE PROJECT.\nThe case stays CONFIRMED/COMPENSATING. Compensation is what\nmade the residual shrink, so a monitor that cleared the case here\nwould be talked out of a true diagnosis by the evidence its own\nresponse destroyed — and the damper is still frozen at 0.15.\nMonitorState.isLatched(); only FaultCase.serviced() gets out."
+  mon -> broker: "31: faults/A115 {COMPENSATING, STUCK_DAMPER, case-3}\nunchanged — no edge back to HEALTHY"
+  sup -> broker: "32: probe commands/A115/damper {0.15 -> 1.00, case-3}\nper room only; the other five see no probe (T-18)"
+  mon -> broker: "33: residuals/A115 {probe produced no response}\nre-confirmed"
+}
+
+service: "service — the only exit from a latched case" {
+  bs -> sim: "34: the technician repairs the damper and clears the alert;\nthe vane follows its command again [REST]"
+  sup -> broker: "35: the next periodic probe, commands/A115/damper\n{0.15 -> 1.00, case-3}"
+  sensor -> broker: "36: readings/A115/co2 {falling} — this time the room responds [MQTT]"
+  broker -> mon: "37: readings/A115/co2, commands/A115/damper"
+  mon -> broker: "38: faults/A115 {SERVICED, case-3} — the explicit clear,\nFaultCase.serviced(); the next cycle starts again at WARMUP"
+  sup -> broker: "39: strategy/A115 {NORMAL}; the five trims released and\ncommands/AHU-A120/fan-speed back to demand"
+}

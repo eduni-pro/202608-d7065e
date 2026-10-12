@@ -1,0 +1,241 @@
+T-23 / T-20 — one documented end-to-end demo-profile run, both UIs captured
+==========================================================================
+
+This transcript exists because RUNBOOK.md section 4.4 published a measured timeline attributed to
+a run at REAL_EPOCH=2026-10-05T20:33:16Z on daa2d5c that no committed file recorded. Section 4.4
+and section 5 are now republished from this run, and every figure in them is readable below.
+
+It does not replace T-23-demo-run.txt, which three other documents cite for R-5's replay figure.
+That run is on fee6748; this one is on 261416e, with the container images rebuilt from this commit
+so the transcript records the behaviour of the code the repository now holds.
+
+REAL_EPOCH=2026-10-06T23:46:33Z
+T0_epoch=1791330393
+T0_local=Wed  7 Oct 2026 01:46:33 CEST
+SEED=42 TIME_SCALE=60 START_AT=2026-10-09T07:45:00Z (compose defaults)
+FAULT_SPEC=STUCK_DAMPER:A115:0.15:T+5400 (default; onset simulated 09:15 = +90 s real)
+BUILDSIM_PORT=9091
+commit=261416e525815a0168b5357d8663b93fb6045e36
+java=openjdk version "25.0.3" 2026-04-21 LTS
+chrome=Chrome/154.0.8037.98
+
+Images rebuilt before the run
+-----------------------------
+The seven project-authored images were rebuilt from this commit before the stack came up, so
+the commit line above describes the code that ran and not only the checkout it ran from:
+  mvn -o -q package -DskipTests   then   docker compose -f docker-compose.yml \
+                                           -f docker-compose.demo.yml build
+
+Capture mechanism
+-----------------
+Chrome headless=new driven over the DevTools Protocol from a Node script using Node's
+built-in WebSocket; no dependency was added. The four host findings tools/README.md records
+all held again on this run and are not repeated here.
+
+Two of the fifteen journal exports had been failing on every earlier run and were fixed for
+this one, which is why this transcript carries a fan figure and a strategies row where
+T-23-demo-run.txt carries neither:
+  * 12-fan asked fan_power for a `speed` column. That table holds watts only; the fan speed is
+    the supervisor's command and lands in strategies.
+  * 13-strategies ordered on `decided_at`, which is the decisions table's column. strategies is
+    keyed on changed_at.
+Both wrote a psql error into the artefact instead of data, and neither failed the run.
+
+Fault injection, as the simulator logged it
+-------------------------------------------
+  physics-simulator-1  | scheduled fault STUCK_DAMPER@A115 magnitude 0.150 from 2026-10-09T09:15:00Z
+
+State timeline, every transition, in simulated time
+---------------------------------------------------
+t|zone|state|classification
+07:54|A115|HEALTHY|NONE
+07:54|A116A|HEALTHY|NONE
+07:54|A124|HEALTHY|NONE
+07:54|A125|HEALTHY|NONE
+07:54|A125A|HEALTHY|NONE
+07:54|A145|HEALTHY|NONE
+10:25|A115|SUSPECT|NONE
+10:27|A115|CONFIRMED|STUCK_DAMPER
+10:58|A115|COMPENSATING|STUCK_DAMPER
+(9 rows)
+
+A115 at the moments section 4.4 quotes, from the 1 Hz poll of /api/state
+------------------------------------------------------------------------
+real  simulated  monitor state  CO2 ppm  residual ppm  CUSUM ppm  AHU W
++0020s  08:05      HEALTHY         516.1         +46.3        0.0  135.3
++0080s  09:05      HEALTHY         742.7         +31.3        0.0  136.1
++0092s  09:17      HEALTHY         804.6         +51.4        0.0  136.5
++0135s  10:00      HEALTHY         811.5         -13.2        0.0  136.7
++0158s  10:23      HEALTHY         879.5        +172.0       72.0  136.7
++0160s  10:25      SUSPECT         937.3        +220.0      124.5  135.9
++0161s  10:26      SUSPECT         984.2        +239.9      186.0  138.0
++0162s  10:27      CONFIRMED       918.5        +286.8      294.3  135.2
++0190s  10:55      CONFIRMED      1061.0        +276.8        0.0  157.6
++0300s  12:45      COMPENSATING    443.4        -408.7        0.0  136.2
++0311s  12:56      COMPENSATING    475.7        -370.8        0.0  137.6
+
+294 usable samples of 314. A115's states occupy, in real seconds from T0:
+  WARMUP          2 samples, +7s..+8s
+  HEALTHY       145 samples, +9s..+159s
+  SUSPECT         2 samples, +160s..+161s
+  CONFIRMED      30 samples, +162s..+192s
+  COMPENSATING  115 samples, +193s..+312s
+
+SUSPECT, caught by the poll and not by a screenshot
+---------------------------------------------------
+  A115 read SUSPECT in 2 of 294 samples:
+    +0160 s  simulated 10:25  CUSUM 124.5 ppm  residual +220.0 ppm
+    +0161 s  simulated 10:26  CUSUM 186.0 ppm  residual +239.9 ppm
+  The page refreshes every 5 s, so a two-second state may never be drawn at all.
+
+What the classifier published at confirmation, in full
+------------------------------------------------------
+  faults/A115  state=CONFIRMED  classification=STUCK_DAMPER
+  caseId=882d5055-c3f1-44eb-8f05-5aa2f4324e77
+
+  + upper-arm CUSUM 124.5 ppm passed the suspicion threshold 90 ppm on residual +220.0 ppm
+  + zone A115 residual +286.8 ppm, upper-arm CUSUM 294.3 ppm against h = 150 ppm
+  - blocked filter: 1 of 6 rooms elevated, so the residual is not common mode
+  - blocked filter: AHU power 101% of the affinity-law prediction at the believed speed, power
+      per unit of believed flow is not up
+  - sensor drift: no commanded step has been judged yet, so whether the room still answers its
+      damper is unknown rather than wrong
+  - sensor drift: no overnight floor yet — less than a day of history, so the empty-room
+      reading is unknown rather than correct
+  + stuck damper: 1 of 6 rooms are elevated, so this is not the plant starving all of them and
+      a damper is where it can be
+  + stuck damper: AHU power flat within 5%, so the plant is doing what it was asked and the
+      fault is downstream of it
+  - stuck damper: NO COMMANDED STEP HAS BEEN JUDGED, so this diagnosis rests on localisation
+      and flat fan power alone. The room has not been asked to move and therefore has not
+      failed to answer; a probe is requested so the third signal can arrive and either confirm
+      or overturn this
+  + belief: this damper is no longer believed to be where it is commanded. The model held it
+      at 0.93 on the strength of the command; the last position its response agreed with, and
+      its own CO2, put it at 0.15, and the shared fan splits a fixed total, so every point of
+      opening credited here is air subtracted from the other five rooms. The belief is pinned
+      at 0.15 until service.
+  + the upper-arm CUSUM stayed above h = 150 ppm for 2 consecutive cycles
+
+Journal row counts at teardown
+------------------------------
+k|count
+readings|1806
+decisions|15
+commands|154
+strategies|1
+fan_power|301
+(5 rows)
+
+Final per-zone state
+--------------------
+zone|t|state|classification
+A115|12:29|COMPENSATING|STUCK_DAMPER
+A116A|07:54|HEALTHY|NONE
+A124|07:54|HEALTHY|NONE
+A125|07:54|HEALTHY|NONE
+A125A|07:54|HEALTHY|NONE
+A145|07:54|HEALTHY|NONE
+(6 rows)
+
+Final per-zone reading
+----------------------
+zone|t|ppm
+A115|12:57|470.2
+A116A|12:57|672.5
+A124|12:57|615.4
+A125|12:57|580.9
+A125A|12:57|613.2
+A145|12:57|449.9
+(6 rows)
+
+AHU power, last five samples
+----------------------------
+t|ahu|watts
+12:57|AHU-A120|135.2
+12:55|AHU-A120|137.6
+12:54|AHU-A120|136.5
+12:53|AHU-A120|136.8
+12:52|AHU-A120|138.1
+(5 rows)
+
+Strategy changes over the whole run
+-----------------------------------
+t|zone|mode|trimmed_position|case_id
+10:27|A115|DEGRADED||882d5055-c3f1-44eb-8f05-5aa2f4324e77
+(1 row)
+
+Commands issued per zone (the blank zone is the air handler, not a room)
+------------------------------------------------------------------------
+zone|count
+A115|92
+A124|10
+A125|26
+A125A|6
+A145|16
+|4
+(6 rows)
+
+Commands before onset
+---------------------
+zone|count|first|last
+(0 rows)
+
+The five uninjected rooms at +300 s (simulated 12:45), which is R-7 live
+------------------------------------------------------------------------
+zone     state         control mode   CO2 ppm   residual ppm   CUSUM ppm
+A115     COMPENSATING  DEGRADED         443.4        -408.7        0.0
+A116A    HEALTHY       NORMAL           670.4         +38.8        0.0
+A124     HEALTHY       NORMAL           598.5          -3.2        0.0
+A125     HEALTHY       NORMAL           586.5         -33.7        0.0
+A125A    HEALTHY       NORMAL           626.4         +40.7        0.0
+A145     HEALTHY       NORMAL           437.0         -41.2        0.0
+  the five: 437.0..670.4 ppm, every CUSUM 0.0, every state HEALTHY, every mode NORMAL
+  AHU 136.2 W
+
+All four room layers on the wire
+--------------------------------
+  co2       6 zones
+       {"A115": 469.6, "A116A": 472.3, "A124": 722.4, "A125": 730.5, "A125A": 738.5, "A145": 719.7}
+  residual  6 zones
+       {"A115": -100, "A116A": -21.2, "A124": -5.1, "A125": -45.5, "A125A": 3.7, "A145": 50.5}
+  cusum     6 zones
+       {"A115": 0, "A116A": 0, "A124": 0, "A125": 0, "A125A": 5.1, "A145": 0}
+  state     6 zones
+       {"A115": 3, "A116A": 0, "A124": 0, "A125": 0, "A125A": 0, "A145": 0}
+
+R-5 — one diagnosis rebuilt from the journal, live
+--------------------------------------------------
+caseId=882d5055-c3f1-44eb-8f05-5aa2f4324e77
+  GET /api/cases/<caseId> returned 82415 bytes, 465 events
+  openedAt=2026-10-09T09:25:42.045353Z  closedAt=2026-10-09T12:29:00.250041Z
+
+Run is not reproducible across runs, and this pair measures it again
+-------------------------------------------------------------------
+  Two runs were taken half an hour apart on this same commit, same SEED, TIME_SCALE and
+  START_AT. A115 confirmed at simulated 10:22 and 10:27 — five simulated minutes apart — and the
+  journal row counts differ with them: 16 decisions and 104 commands against 15 and 154. The
+  earlier published runs confirmed at 10:16, 10:17, 10:19 and 10:23, so six runs on record now
+  span 10:16 to 10:27.
+  The sensor model draws once per Euler sub-step and the sub-step count follows real elapsed
+  time, so host scheduling decides how many draws land inside a simulated minute.
+  Teardown is at +313 s, ahead of the +336 s spurious A116A confirmation this profile documents,
+  so that known R-3 false alarm is outside the captured window by design.
+  The offline harness in evaluation/ is reproducible bit for bit, and that is where every
+  requirement number comes from. This transcript is one draw of a demo, not evidence for a
+  requirement.
+
+What changed in the published evidence block since the last transcript
+-----------------------------------------------------------------------
+  Worth stating because it is the one place the demo's headline output moved. RUNBOOK section 4.4
+  used to print a stuck-damper block whose third line was
+      + stuck damper: the commanded step produced no matching response
+  The current classifier prints, at the same moment, the negative of it:
+      - stuck damper: NO COMMANDED STEP HAS BEEN JUDGED, so this diagnosis rests on localisation
+        and flat fan power alone.
+  The three-valued StepResponse separates "a step was judged and went unanswered" from "no step
+  has been judged", and at confirmation no step has been judged, ever, because a probe is only
+  requested once a case is latched. So the demo now confirms on two signals and says so. The
+  sensor-drift line moved the same way, from an amplitude mismatch to "no commanded step has been
+  judged yet". Nothing regressed: the leaf reaches the same classification, and the work order is
+  honest about what it rests on.

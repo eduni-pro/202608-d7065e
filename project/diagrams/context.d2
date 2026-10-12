@@ -1,0 +1,11 @@
+# C4 level 1 — system context (T-10). Edges point the way the call goes. BuildSim is a server
+# this system calls and never a caller: it has no client for us, so it gets no arrow back.
+direction: down
+tech: "Facilities technician\n[Person]\nReceives the work order,\nrepairs the damper" { shape: person }
+occ: "Room occupants\n[Person]\nThe CO2 source, and\nwhose comfort R-2 protects" { shape: person }
+sys: "Ventilation Fault Detection, Diagnosis\nand Graceful Degradation\n[Software System]\nControls ventilation in six rooms, decides\nwhether its own equipment still works,\nand survives the faults it finds"
+bs: "BuildSim\n[Software System]\nBuilding state: rooms, sensor values,\nactuator state, 3D viewer, alerts"
+occ -> sys: "raise CO2 (via the simulated building)"
+sys -> tech: "work order naming room and fault [BuildSim alert]"
+tech -> sys: "repairs, which clears the latched case"
+sys -> bs: "reads sensor values and actuator state, commands\nactuators, publishes room layers and alerts — every\nexchange initiated here, BuildSim never calls in [REST]"

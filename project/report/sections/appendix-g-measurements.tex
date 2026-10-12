@@ -1,0 +1,96 @@
+\section{Every measurement and its bound, in one place}\label{sec:G}
+
+So that nothing in this report can be mistaken for measured. What was a fourteen-row table is seven
+rows: the six requirement-level experiments that filled it have run and are reported in §\ref{sec:11.2}, and
+a seventh row records an experiment this report did not originally plan. The occupancy sensitivity
+the first asked for was already in T-24's own result file, R-5's rebuilt case and T-23's dashboard
+frames were captured from a live demo-profile run, T-27's kills were repeated against
+\texttt{docker compose}, T-15's confusion matrix has been measured over 218 runs, T-29's optional
+contender has been measured and dropped, and T-35's reordering of the diagnosis has been measured
+and not adopted, so \textbf{every row in this table is now filled}, and each keeps the bound on
+what its evidence actually is. That is not the same as every
+requirement passing: R-1 and R-3 still fail on the arms named in §\ref{sec:11.2}, R-2 and R-7 fail on the
+harder of their two occupancy regimes, and T-15 reports that one of four injected mechanisms is
+classified rather than all of them. The table being full means nothing in this report is waiting on a measurement, not
+that the measurements came out well.
+
+One result is worth stating separately, because the obvious way to test it measures the wrong
+thing. All \factComposeServices{} services declare \texttt{restart: unless-stopped}. After \texttt{docker kill} both
+killed containers sat at exit 137 with a restart count of \textbf{zero}, which looks like a broken
+policy and is not: a kill issued through the daemon is recorded as a manual stop and deliberately
+suppresses restarts. Nor does \texttt{SIGKILL} work from inside, because PID 1 in these images is
+the JVM itself with no init wrapper, and the kernel ignores \texttt{SIGKILL} sent to PID 1 from
+within its own namespace. The signal that does work is \texttt{SIGTERM} delivered inside the
+container: Quarkus handles it, the JVM shuts down of its own accord, and Docker sees a process that
+exited rather than one that was stopped. Measured that way the policy fires: exit code 0,
+\textbf{restart count 1}, and the container back in \texttt{running} within 3 s. \textbf{The
+distinction is the finding}: a chaos test that only runs \texttt{docker kill} cannot tell a working
+restart policy from a missing one, and would have reported this configuration as broken.
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.0878}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.0878}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.4487}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.3707}}@{}}
+\toprule
+\textbf{Req.} & \textbf{Run} & \textbf{The number that must replace the marker} &
+\textbf{Where it goes in this report} \\
+\midrule
+\endhead
+R-1 & T-24 & \textbf{Filled, with a bound on what it is.} Detection delay against the
+actual-to-design occupancy ratio is now read off the closed-loop arm's own per-run head count:
+0 of 4 confirmed at 0.625 of design, then 122 and 257 min at 0.75, 77 min median at 0.875 and
+31 min median at 1.00 (§\ref{sec:11.2}). It is a stratification of 20 drawn weekdays rather than a sweep of
+a controlled occupancy, over one room and one $h$, so a true sensitivity experiment is still a
+different run & §\ref{sec:7.2}, §\ref{sec:11.2} \\
+R-4 & T-27 & \textbf{Filled, except for the restart policy.} The kills were carried out against
+\texttt{docker compose} on \texttt{daa2d5c}. Stopping \texttt{co2-sensor} put five of six rooms in
+\texttt{BLIND} within 12 s; the sixth was latched and stayed \texttt{COMPENSATING}, which is the
+design. No new diagnosis was raised while blind, and no healthy room was commanded. The only
+commands issued were the latched room's held position and the fan. Recovery ran
+\texttt{BLIND}~→~\texttt{WARMUP}~→~\texttt{HEALTHY} across all five rooms in three cycles.
+Killing \texttt{fault-monitor} left ventilation running; killing \texttt{supervisor} mid-compensation
+left the fan at 158.3~W, raised no new strategy and kept A115 latched. The restart policy is
+measured too, once the kill is delivered in a way Docker counts: see §\ref{sec:11.6} & §\ref{sec:3} status, §\ref{sec:11.2} \\
+R-5 & T-20 & \textbf{Filled, with a bound on what it is.} A diagnosis was rebuilt from the journal
+live, in the recorded demo run: \texttt{GET /api/cases/aecd9137-\allowbreak 6c3d-\allowbreak 42a8-\allowbreak ac11-\allowbreak 438ef3d9d2d6}
+returned HTTP 200, 77\,248 bytes and \textbf{445 events} (every reading, residual and CUSUM value
+in sequence) against a real TimescaleDB rather than a test double
+(\texttt{evaluation/results/T-23-demo-run.txt}, §\ref{sec:5}). The \texttt{caseId} was the one that run produced rather than a
+randomly chosen one. \textbf{R-5 now has an integration test as well}: eight tests execute
+\texttt{replayCase}'s real SQL against a real PostgreSQL, including the one-hour evidence lookback,
+and they bound reconstruction fidelity at half a microsecond because a \texttt{timestamptz} round
+trip rounds rather than truncates & §\ref{sec:3} status \\
+R-1, R-3 & T-15 & \textbf{Filled, and it is the least flattering result in this report.} 218 runs
+over the four injectable faults plus a no-fault arm. \texttt{STUCK\_DAMPER} is named correctly;
+\texttt{BLOCKED\_FILTER} confirms as \texttt{UNCLASSIFIED} 11 of 11, as predicted;
+\texttt{SENSOR\_DRIFT} is \textbf{never emitted at all} (0 of 76 runs from a drift ramp over
+5--160 ppm/h \emph{and} 0 of 76 from a step offset over 50--700 ppm), so \textbf{one of four
+mechanisms is classified}. The no-fault arm is silent on 10 of 11 seeds, and the one false positive
+arrives as a \emph{named} damper in a \emph{named} room rather than as \texttt{UNCLASSIFIED}, which
+is a worse failure than a vague one (§\ref{sec:7.3}) & §\ref{sec:7.3} \\
+R-1, R-3 & T-29 & \textbf{Filled: measured, and dropped.} A one-class detector fitted on a
+fault-free commissioning window only, scored on a held-out 7-day week over 20 seeds and 30
+operating points. At the incumbent's 0.75 detection rate it costs about \textbf{20× the false
+alarms} (11.25 against 0.55 per week) and \textbf{7× the delay} (518 against 74 min), and no point
+on the grid beats the monitor. Its misses are
+\emph{exactly} the monitor's (the same five seeds), which is the finding: what limits detection
+here is the evidence the residual carries, not the decision rule, and a learned rule cannot add
+evidence (§\ref{sec:11.2}) & §\ref{sec:11.2}, §\ref{sec:13} \\
+— & T-23 & \textbf{Filled, and re-captured after the room-layer fix.} Seven frames from a live
+demo-profile run: the dashboard with its detector deliberately not firing at simulated 10:01, the
+same table with A115 \texttt{CONFIRMED} at 10:23, BuildSim's floor plan beside the supervisor's
+work order at that instant, and \textbf{all four layers at one instant}, the last of which could
+not be taken at all before the collection defect was fixed, because three of the four never
+reached BuildSim. No requirement states what the view must show, so this is evidence the operator
+path works rather than evidence against a criterion & §\ref{sec:12} \\
+R-1 & T-35 & \textbf{Filled by an experiment this report did not originally plan, and the answer is
+no.} The stuck-damper leaf accepts \texttt{NOT\_JUDGED} because a probe can only be requested once a
+case is latched, so the obvious remedy is to withhold the diagnosis until a probe has landed. Built,
+and measured over 176 paired runs on identical seeds: detection moves in \textbf{0 of 88 pairs}, the
+fault is named on a genuinely judged step in 28 of the 39 runs that defer against 0 before, and
+the settled classification is \textbf{identical in all 88 pairs}, because the judged step returns
+\texttt{MISSING} for every condition, including nine rooms whose dampers are in perfect health and
+one run with nothing injected. \textbf{Not adopted} (§\ref{sec:7.3}, §\ref{sec:13.6}) & §\ref{sec:7.3}, §\ref{sec:10}, §\ref{sec:13.6} \\
+\bottomrule
+\end{longtable}

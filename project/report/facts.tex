@@ -1,0 +1,79 @@
+% Single-sourced facts for this report. Every number defined here is quoted in more than one
+% sections/*.tex file, and every one of them has gone stale at least once by being changed in one
+% place and not the others. A number that appears once is deliberately not here: it is edited where
+% it is written.
+%
+% Form: a macro holds the number in the form the prose uses -- digits where the report writes
+% digits, the English word where the report writes the word. Substituting a macro must never turn
+% "Ten compose services" into "10 compose services".
+%
+% Nothing historical is parameterised. Numbers that record what was measured at a named commit, on
+% a named date, or on a patch that was reverted -- the 15/44 probe-order baseline (D.3, I), the 26
+% pre-fix false positives (F), the 445 events of the R-5 demo -- keep their literal value even
+% where it differs from today's, and must stay literal.
+%
+% Deliberately not here, and why:
+%   * the six rooms. Fixed by Topology.java and by R-7's own design, so it cannot drift; it appears
+%     in the heading of 6.1, where a non-expandable macro would reach the table of contents and the
+%     PDF bookmarks; and most of its occurrences are derived prose -- "five of six rooms", "the
+%     other five rooms", "eight of its ten rooms" -- that one count macro cannot carry.
+%   * the five published ports. One occurrence (9, first paragraph), and that sentence enumerates
+%     all five ports beside the count, so a macro would let the count drift from its own list.
+%   * the per-module test counts in K.2, the harness's 350 s, and its nine result tables. One
+%     occurrence each, or ordinal forms ("the ninth is T-28") a count macro cannot carry.
+%   * 0 failures and 0 errors. They cannot drift without the build going red.
+
+% --- The unit suite ----------------------------------------------------------
+% Tests over the whole Maven reactor. Re-measure:
+%   cd project && mvn -o clean test \
+%     | grep -E '^\[(INFO|WARNING)\] Tests run:' | grep -v ' -- in ' \
+%     | awk -F'[:,]' '{s+=$2} END {print s}'
+% The [WARNING] alternative is not optional: Surefire prints a module's summary line as [WARNING]
+% rather than [INFO] when that module skipped anything, so matching [INFO] alone silently drops the
+% whole of shared/ -- which is nearly half the suite. The ' -- in ' filter drops the per-class
+% lines, which would otherwise be counted a second time.
+% Changing this number means changing the per-module breakdown in K.2 with it: the two must sum.
+\newcommand{\factSuiteTests}{621}
+
+% The day the run above was taken. Two subsections quote that one run; before this file they quoted
+% it as two different days.
+\newcommand{\factSuiteRunDate}{2026-10-11}
+
+% Reactor modules that have tests -- one fewer than the ten projects the reactor builds, because
+% the root POM carries none of its own. Re-measure:
+%   cd project && mvn -o clean test \
+%     | grep -E '^\[(INFO|WARNING)\] Tests run:' | grep -vc ' -- in '
+\newcommand{\factReactorModules}{nine}
+
+% Tests guarded by Assumptions.assumeTrue: the ones that skip when the broker or the database they
+% assert against is unreachable, and run when it is up. The suite's skip count is therefore not a
+% property of the suite -- it is this number on a bare machine and zero with the stack up -- which
+% is why the report quotes this and never a skip count. Re-measure:
+%   cd project && grep -rl --include='*.java' Assumptions.assumeTrue . \
+%     | xargs grep -h -c '@Test' | awk '{s+=$1} END {print s}'
+\newcommand{\factGuardedTests}{eleven}
+
+% ... and how those are spread over the three suites that hold them. Re-measure each with
+%   grep -c '@Test' project/shared/src/test/java/se/ltu/d7065e/shared/boundary/<name>.java
+\newcommand{\factJournalTests}{eight}   % TimescaleJournalIntegrationTest -- needs PostgreSQL
+\newcommand{\factPipelineTests}{two}    % MqttPipelineIntegrationTest -- broker and fault-monitor
+\newcommand{\factReconnectTests}{one}   % MqttReconnectIntegrationTest -- needs the broker
+
+% --- Deployment --------------------------------------------------------------
+% Services in docker-compose.yml. Re-measure:
+%   cd project && grep -cE '^  [a-z0-9-]+:' docker-compose.yml
+% Two forms, because the prose needs both at the start of a sentence and inside one. The lowercase
+% one is derived from the capitalised one by \lowercase, so there is still only one value to edit
+% and the two can never disagree.
+\newcommand{\factComposeServicesCap}{Ten}
+\newcommand{\factComposeServices}{\expandafter\lowercase\expandafter{\factComposeServicesCap}}
+
+% ... of which this many are built from a folder under project/, rather than being buildsim from
+% the sibling buildingsim/ folder or a third-party image. Re-measure:
+%   cd project && grep -c 'build: \./' docker-compose.yml
+\newcommand{\factAuthoredServices}{seven}
+
+% --- The offline evaluation harness ------------------------------------------
+% Experiments evaluation/Main can run, counted as the ids it dispatches. Re-measure:
+%   cd project && grep -c '::run;' evaluation/src/main/java/se/ltu/d7065e/evaluation/Main.java
+\newcommand{\factExperiments}{ten}
